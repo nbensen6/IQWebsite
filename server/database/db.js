@@ -164,6 +164,30 @@ try {
 } catch (e) {
   // Column already exists
 }
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN summoner_level INTEGER`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN rank_tier TEXT`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN rank_division TEXT`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN rank_lp INTEGER`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN rank_wins INTEGER`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN rank_losses INTEGER`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN riot_puuid TEXT`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN riot_data_updated_at DATETIME`);
+} catch (e) {}
 
 console.log('Database initialized successfully');
 

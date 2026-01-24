@@ -163,6 +163,33 @@ function Roster() {
     }
   };
 
+  const handleSyncRiot = async (playerId) => {
+    try {
+      const response = await api.post(`/players/${playerId}/sync-riot`);
+      setPlayers(players.map(p =>
+        p.id === playerId ? response.data : p
+      ));
+    } catch (err) {
+      console.error('Failed to sync Riot data:', err.response?.data?.error || err.message);
+      alert(err.response?.data?.error || 'Failed to sync Riot data');
+    }
+  };
+
+  const getRankDisplay = (player) => {
+    if (!player.rank_tier) return null;
+    const winRate = player.rank_wins && player.rank_losses
+      ? Math.round((player.rank_wins / (player.rank_wins + player.rank_losses)) * 100)
+      : null;
+    return {
+      tier: player.rank_tier,
+      division: player.rank_division,
+      lp: player.rank_lp,
+      wins: player.rank_wins,
+      losses: player.rank_losses,
+      winRate
+    };
+  };
+
   const handleAddPlayer = async (e) => {
     e.preventDefault();
     try {
@@ -543,10 +570,42 @@ function Roster() {
                       });
                     }}
                   >
-                    Link OP.GG
+                    Link Riot ID
                   </button>
                 )
               ) : null}
+
+              {/* Rank Display */}
+              {getRankDisplay(player) && (
+                <div className="player-rank" style={{marginBottom: '0.5rem', fontSize: '0.85rem'}}>
+                  <strong style={{color: 'var(--accent-gold)'}}>
+                    {getRankDisplay(player).tier} {getRankDisplay(player).division}
+                  </strong>
+                  <span style={{color: 'var(--text-secondary)', marginLeft: '0.5rem'}}>
+                    {getRankDisplay(player).lp} LP
+                  </span>
+                  <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
+                    {getRankDisplay(player).wins}W {getRankDisplay(player).losses}L ({getRankDisplay(player).winRate}%)
+                  </div>
+                </div>
+              )}
+
+              {/* Sync Button */}
+              {player.opgg_username && user && (user.role === 'admin' || user.id === player.user_id) && (
+                <button
+                  className="btn btn-secondary btn-small"
+                  style={{marginBottom: '0.5rem', fontSize: '0.75rem'}}
+                  onClick={() => handleSyncRiot(player.id)}
+                >
+                  Sync Riot Data
+                </button>
+              )}
+
+              {player.summoner_level && (
+                <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>
+                  Level {player.summoner_level}
+                </div>
+              )}
 
               {player.champion_pool && (
                 <div className="champion-pool">

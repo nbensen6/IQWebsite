@@ -179,7 +179,124 @@ router.patch('/:id/opgg', authenticateToken, (req, res) => {
   }
 });
 
-// Fetch op.gg data for a player (scrapes public profile)
+// Sync Riot data for a player
+router.post('/:id/sync-riot', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const RIOT_API_KEY = process.env.RIOT_API_KEY;
+
+    if (!RIOT_API_KEY) {
+      return res.status(500).json({ error: 'Riot API key not configured' });
+    }
+
+    const player = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    if (!player.opgg_username) {
+      return res.status(400).json({ error: 'Player has no Riot ID linked' });
+    }
+
+    // Parse Riot ID (Name#TAG)
+    const riotId = player.opgg_username.replace('#', '-').split('-');
+    if (riotId.length < 2) {
+      return res.status(400).json({ error: 'Invalid Riot ID format. Use Name#TAG' });
+    }
+
+    const gameName = riotId.slice(0, -1).join('-');
+    const tagLine = riotId[riotId.length - 1];
+    const region = player.opgg_region || 'na';
+
+    // Map region to API values
+    const regionMap = {
+      'na': 'na1', 'euw': 'euw1', 'eune': 'eun1', 'kr': 'kr',
+      'br': 'br1', 'lan': 'la1', 'las': 'la2', 'oce': 'oc1',
+      'tr': 'tr1', 'ru': 'ru', 'jp': 'jp1'
+    };
+    const routingMap = {
+      'na': 'americas', 'br': 'americas', 'lan': 'americas', 'las': 'americas',
+      'euw': 'europe', 'eune': 'europe', 'tr': 'europe', 'ru': 'europe',
+      'kr': 'asia', 'jp': 'asia', 'oce': 'sea'
+    };
+
+    const apiRegion = regionMap[region] || 'na1';
+    const routing = routingMap[region] || 'americas';
+
+    const riotFetch = async (url) => {
+      const response = await fetch(url, {
+        headers: { 'X-Riot-Token': RIOT_API_KEY }
+      });
+      if (!response.ok) {
+        const error = new Error(`Riot API: ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return response.json();
+    };
+
+    // Get PUUID
+    const accountData = await riotFetch(
+      `https://${routing}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`
+    );
+
+    // Get summoner data
+    const summonerData = await riotFetch(
+      `https://${apiRegion}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${accountData.puuid}`
+    );
+
+    // Get ranked data
+    let soloQueue = null;
+    try {
+      const rankedData = await riotFetch(
+        `https://${apiRegion}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`
+      );
+      soloQueue = rankedData.find(q => q.queueType === 'RANKED_SOLO_5x5');
+    } catch (e) {
+      console.log('Could not fetch ranked data');
+    }
+
+    // Update player in database
+    db.prepare(`
+      UPDATE players SET
+        profile_icon_id = ?,
+        summoner_level = ?,
+        rank_tier = ?,
+        rank_division = ?,
+        rank_lp = ?,
+        rank_wins = ?,
+        rank_losses = ?,
+        riot_puuid = ?,
+        riot_data_updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      summonerData.profileIconId,
+      summonerData.summonerLevel,
+      soloQueue?.tier || null,
+      soloQueue?.rank || null,
+      soloQueue?.leaguePoints || null,
+      soloQueue?.wins || null,
+      soloQueue?.losses || null,
+      accountData.puuid,
+      id
+    );
+
+    const updated = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    res.json(updated);
+
+  } catch (error) {
+    console.error('Riot sync error:', error);
+    if (error.status === 404) {
+      return res.status(404).json({ error: 'Player not found on Riot servers' });
+    }
+    if (error.status === 403) {
+      return res.status(403).json({ error: 'Riot API key expired or invalid' });
+    }
+    res.status(500).json({ error: 'Failed to sync Riot data' });
+  }
+});
+
+// Fetch op.gg data for a player (legacy endpoint)
 router.get('/:id/opgg-data', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
