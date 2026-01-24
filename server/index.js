@@ -42,6 +42,9 @@ if (process.env.NODE_ENV === 'production') {
 
   const servePath = fs.existsSync(staticPath) ? staticPath : altStaticPath;
 
+  // Serve videos from persistent volume (/data/videos)
+  app.use('/videos', express.static('/data/videos'));
+
   app.use(express.static(servePath));
   app.get('*', (req, res) => {
     res.sendFile(path.join(servePath, 'index.html'));

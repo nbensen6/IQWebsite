@@ -49,6 +49,52 @@ body {
   width: 100%;
 }
 
+/* Video Background */
+.video-background-container {
+  position: relative;
+  min-height: calc(100vh - 70px);
+  overflow: hidden;
+}
+
+.video-background {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 70px);
+  object-fit: cover;
+  z-index: -2;
+}
+
+.video-overlay {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 70px);
+  background: linear-gradient(
+    to bottom,
+    rgba(17, 17, 17, 0.7) 0%,
+    rgba(17, 17, 17, 0.85) 50%,
+    rgba(17, 17, 17, 0.95) 100%
+  );
+  z-index: -1;
+}
+
+.video-content {
+  position: relative;
+  z-index: 1;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Remove main-content padding when using video background */
+.main-content:has(.video-background-container) {
+  padding: 0;
+  max-width: none;
+}
+
 /* Navigation */
 .navbar {
   background-color: var(--bg-secondary);

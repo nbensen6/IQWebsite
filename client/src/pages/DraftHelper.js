@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import VideoBackground from '../components/VideoBackground';
 
 const ROLES = ['All', 'Top', 'Jungle', 'Mid', 'ADC', 'Support'];
 
@@ -273,8 +274,9 @@ function DraftHelper() {
   if (error) return <div className="error">{error}</div>;
 
   return (
-    <div className="draft-page">
-      <h1 style={{marginBottom: '1.5rem'}}>Draft Helper</h1>
+    <VideoBackground videoSrc="/videos/Twighlight's End.mp4">
+      <div className="draft-page">
+        <h1 style={{marginBottom: '1.5rem'}}>Draft Helper</h1>
 
       <div className="draft-container">
         <div className="champion-section">
@@ -493,8 +495,9 @@ function DraftHelper() {
             Save Notes
           </button>
         </div>
-      )}
-    </div>
+        )}
+      </div>
+    </VideoBackground>
   );
 }
 
