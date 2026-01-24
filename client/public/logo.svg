@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+  <defs>
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f4d03f"/>
+      <stop offset="50%" style="stop-color:#d4af37"/>
+      <stop offset="100%" style="stop-color:#b8860b"/>
+    </linearGradient>
+    <linearGradient id="darkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="100" cy="50" r="45" fill="url(#darkGradient)" stroke="url(#goldGradient)" stroke-width="3"/>
+
+  <!-- IQ Text -->
+  <text x="100" y="62" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="42" font-weight="bold"
+        fill="url(#goldGradient)" filter="url(#glow)">
+    IQ
+  </text>
+
+  <!-- Golden Retriever Paw Print (stylized) -->
+  <g transform="translate(145, 20) scale(0.6)" fill="#d4af37" opacity="0.9">
+    <!-- Main pad -->
+    <ellipse cx="20" cy="30" rx="12" ry="10"/>
+    <!-- Toe pads -->
+    <ellipse cx="8" cy="15" rx="6" ry="7"/>
+    <ellipse cx="20" cy="10" rx="6" ry="7"/>
+    <ellipse cx="32" cy="15" rx="6" ry="7"/>
+    <ellipse cx="38" cy="25" rx="5" ry="6"/>
+  </g>
+
+  <!-- Accent lines -->
+  <path d="M20 50 Q35 45 50 50" stroke="url(#goldGradient)" stroke-width="2" fill="none" opacity="0.5"/>
+  <path d="M150 50 Q165 55 180 50" stroke="url(#goldGradient)" stroke-width="2" fill="none" opacity="0.5"/>
+</svg>
