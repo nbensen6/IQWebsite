@@ -34,4 +34,7 @@ coverage/
 # Misc
 *.tmp
 *.temp
-*.mp4
+
+# Large video assets (keep small optimized loops)
+Assets/*.mp4
+Assets/*.gif

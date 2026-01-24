@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import VideoBackground from '../components/VideoBackground';
 
 const ROLE_ICONS = {
   Top: '⚔️',
@@ -269,9 +268,8 @@ function Roster() {
   const isAdmin = user?.role === 'admin';
 
   return (
-    <VideoBackground videoSrc="/videos/Salvation.mp4">
-      <div className="roster-page">
-        <h1 style={{marginBottom: '1.5rem', textAlign: 'center'}}>Team Roster</h1>
+    <div className="roster-page">
+      <h1 style={{marginBottom: '1.5rem', textAlign: 'center'}}>Team Roster</h1>
 
       {/* Admin Panel */}
       {isAdmin && (
@@ -648,9 +646,8 @@ function Roster() {
             ))}
           </div>
         )}
-        </div>
       </div>
-    </VideoBackground>
+    </div>
   );
 }
 

@@ -7,7 +7,7 @@ function Home() {
   const { user } = useAuth();
 
   return (
-    <VideoBackground videoSrc="/videos/Viego.mp4">
+    <VideoBackground videoSrc="/videos/TFLoop.mp4">
       <div className="home">
         <div className="home-hero">
           <img src="/logo.png" alt="IQ Team Logo" className="home-logo" />

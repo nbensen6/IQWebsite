@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
 import api from '../services/api';
-import VideoBackground from '../components/VideoBackground';
 
 function Stats() {
   const [stats, setStats] = useState([]);
@@ -126,10 +125,9 @@ function Stats() {
   if (loading) return <div className="loading">Loading stats...</div>;
 
   return (
-    <VideoBackground videoSrc="/videos/Twist of Fate.mp4">
-      <div className="stats-page">
-        <div className="stats-header">
-          <h1>Team Statistics</h1>
+    <div className="stats-page">
+      <div className="stats-header">
+        <h1>Team Statistics</h1>
         <div className="file-upload">
           <input
             type="file"
@@ -244,10 +242,9 @@ function Stats() {
               </tbody>
             </table>
           </div>
-          )}
-        </div>
+        )}
       </div>
-    </VideoBackground>
+    </div>
   );
 }
 
