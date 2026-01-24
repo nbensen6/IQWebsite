@@ -9,16 +9,14 @@ function Home() {
   return (
     <VideoBackground videoSrc="/videos/TFLoop.mp4">
       <div className="home">
-        <div className="home-hero">
-          <img src="/logo.png" alt="IQ Team Logo" className="home-logo" />
-
-          {!user && (
+        {!user && (
+          <div className="home-hero">
             <div style={{display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '2rem'}}>
               <Link to="/register" className="btn btn-primary">Join the Team</Link>
               <Link to="/login" className="btn btn-secondary">Sign In</Link>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="home-features">
           <div className="card feature-card">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import VideoBackground from '../components/VideoBackground';
 
 function Announcements() {
   const { user } = useAuth();
@@ -73,9 +74,10 @@ function Announcements() {
   if (loading) return <div className="loading">Loading announcements...</div>;
 
   return (
-    <div className="announcements-page">
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
-        <h1>Announcements</h1>
+    <VideoBackground videoSrc="/videos/DragonsLoop.mp4">
+      <div className="announcements-page">
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
+          <h1>Announcements</h1>
         {isAdmin && !showForm && (
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>
             + New Announcement
@@ -148,9 +150,10 @@ function Announcements() {
               <span>{formatDate(announcement.created_at)}</span>
             </div>
           </div>
-        ))
-      )}
-    </div>
+          ))
+        )}
+      </div>
+    </VideoBackground>
   );
 }
 
