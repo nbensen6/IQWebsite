@@ -24,7 +24,9 @@ function DraftHelper() {
   const [redPicks, setRedPicks] = useState([null, null, null, null, null]);
   const [blueBans, setBlueBans] = useState([null, null, null, null, null]);
   const [redBans, setRedBans] = useState([null, null, null, null, null]);
-  const [mode, setMode] = useState('bluePick');
+
+  const [draggedChampion, setDraggedChampion] = useState(null);
+  const [dragOverSlot, setDragOverSlot] = useState(null);
 
   const [selectedChampion, setSelectedChampion] = useState(null);
   const [championNotes, setChampionNotes] = useState({});
@@ -101,44 +103,67 @@ function DraftHelper() {
            redBans.includes(champId);
   };
 
-  const handleChampionClick = (champId) => {
-    if (isChampionUsed(champId)) return;
-
-    let updated = false;
-
-    if (mode === 'bluePick') {
-      const idx = bluePicks.findIndex(p => p === null);
-      if (idx !== -1) {
-        const newPicks = [...bluePicks];
-        newPicks[idx] = champId;
-        setBluePicks(newPicks);
-        updated = true;
-      }
-    } else if (mode === 'redPick') {
-      const idx = redPicks.findIndex(p => p === null);
-      if (idx !== -1) {
-        const newPicks = [...redPicks];
-        newPicks[idx] = champId;
-        setRedPicks(newPicks);
-        updated = true;
-      }
-    } else if (mode === 'blueBan') {
-      const idx = blueBans.findIndex(p => p === null);
-      if (idx !== -1) {
-        const newBans = [...blueBans];
-        newBans[idx] = champId;
-        setBlueBans(newBans);
-        updated = true;
-      }
-    } else if (mode === 'redBan') {
-      const idx = redBans.findIndex(p => p === null);
-      if (idx !== -1) {
-        const newBans = [...redBans];
-        newBans[idx] = champId;
-        setRedBans(newBans);
-        updated = true;
-      }
+  // Drag handlers for champions
+  const handleDragStart = (e, champ) => {
+    if (isChampionUsed(champ.id)) {
+      e.preventDefault();
+      return;
     }
+    setDraggedChampion(champ);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', champ.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedChampion(null);
+    setDragOverSlot(null);
+  };
+
+  // Slot drag handlers
+  const handleSlotDragOver = (e, slotType, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverSlot({ type: slotType, index });
+  };
+
+  const handleSlotDragLeave = () => {
+    setDragOverSlot(null);
+  };
+
+  const handleSlotDrop = (e, slotType, index) => {
+    e.preventDefault();
+    setDragOverSlot(null);
+
+    if (!draggedChampion) return;
+
+    const champId = draggedChampion.id;
+
+    switch (slotType) {
+      case 'bluePick':
+        const newBluePicks = [...bluePicks];
+        newBluePicks[index] = champId;
+        setBluePicks(newBluePicks);
+        break;
+      case 'redPick':
+        const newRedPicks = [...redPicks];
+        newRedPicks[index] = champId;
+        setRedPicks(newRedPicks);
+        break;
+      case 'blueBan':
+        const newBlueBans = [...blueBans];
+        newBlueBans[index] = champId;
+        setBlueBans(newBlueBans);
+        break;
+      case 'redBan':
+        const newRedBans = [...redBans];
+        newRedBans[index] = champId;
+        setRedBans(newRedBans);
+        break;
+      default:
+        break;
+    }
+
+    setDraggedChampion(null);
   };
 
   const handleSlotClick = (team, type, idx) => {
@@ -191,6 +216,10 @@ function DraftHelper() {
     }
   };
 
+  const isSlotHighlighted = (slotType, index) => {
+    return dragOverSlot?.type === slotType && dragOverSlot?.index === index;
+  };
+
   if (loading) return <div className="loading">Loading champions...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -222,6 +251,10 @@ function DraftHelper() {
             />
           </div>
 
+          <p style={{marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem'}}>
+            Drag champions to pick/ban slots. Right-click for notes. Click filled slots to remove.
+          </p>
+
           <div className="champion-grid">
             {filteredChampions.map(champ => {
               const used = isChampionUsed(champ.id);
@@ -231,10 +264,13 @@ function DraftHelper() {
               return (
                 <div
                   key={champ.id}
-                  className={`champion-card ${isPicked ? 'picked' : ''} ${isBanned ? 'banned' : ''}`}
-                  onClick={() => handleChampionClick(champ.id)}
+                  className={`champion-card ${isPicked ? 'picked' : ''} ${isBanned ? 'banned' : ''} ${used ? '' : 'draggable'}`}
+                  draggable={!used}
+                  onDragStart={(e) => handleDragStart(e, champ)}
+                  onDragEnd={handleDragEnd}
                   onContextMenu={(e) => handleRightClick(e, champ)}
                   title={champ.name}
+                  style={{ cursor: used ? 'not-allowed' : 'grab' }}
                 >
                   <img src={champ.image} alt={champ.name} />
                   <div className="champion-name">{champ.name}</div>
@@ -245,25 +281,18 @@ function DraftHelper() {
         </div>
 
         <div className="draft-board card">
-          <div className="draft-mode mb-2">
-            <label>Mode: </label>
-            <select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="bluePick">Blue Pick</option>
-              <option value="redPick">Red Pick</option>
-              <option value="blueBan">Blue Ban</option>
-              <option value="redBan">Red Ban</option>
-            </select>
-          </div>
-
           <div className="draft-team mb-3">
-            <h3>Blue Team</h3>
+            <h3>Blue Team (Ally)</h3>
             <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>Picks</p>
             <div className="draft-slots">
               {bluePicks.map((champId, idx) => (
                 <div
                   key={idx}
-                  className="draft-slot"
+                  className={`draft-slot ${isSlotHighlighted('bluePick', idx) ? 'drag-over' : ''}`}
                   onClick={() => handleSlotClick('blue', 'pick', idx)}
+                  onDragOver={(e) => handleSlotDragOver(e, 'bluePick', idx)}
+                  onDragLeave={handleSlotDragLeave}
+                  onDrop={(e) => handleSlotDrop(e, 'bluePick', idx)}
                 >
                   {champId && <img src={getChampionImage(champId)} alt="" />}
                 </div>
@@ -274,8 +303,11 @@ function DraftHelper() {
               {blueBans.map((champId, idx) => (
                 <div
                   key={idx}
-                  className="ban-slot"
+                  className={`ban-slot ${isSlotHighlighted('blueBan', idx) ? 'drag-over' : ''}`}
                   onClick={() => handleSlotClick('blue', 'ban', idx)}
+                  onDragOver={(e) => handleSlotDragOver(e, 'blueBan', idx)}
+                  onDragLeave={handleSlotDragLeave}
+                  onDrop={(e) => handleSlotDrop(e, 'blueBan', idx)}
                 >
                   {champId && <img src={getChampionImage(champId)} alt="" />}
                 </div>
@@ -284,14 +316,17 @@ function DraftHelper() {
           </div>
 
           <div className="draft-team enemy">
-            <h3>Red Team</h3>
+            <h3>Red Team (Enemy)</h3>
             <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>Picks</p>
             <div className="draft-slots">
               {redPicks.map((champId, idx) => (
                 <div
                   key={idx}
-                  className="draft-slot"
+                  className={`draft-slot ${isSlotHighlighted('redPick', idx) ? 'drag-over' : ''}`}
                   onClick={() => handleSlotClick('red', 'pick', idx)}
+                  onDragOver={(e) => handleSlotDragOver(e, 'redPick', idx)}
+                  onDragLeave={handleSlotDragLeave}
+                  onDrop={(e) => handleSlotDrop(e, 'redPick', idx)}
                 >
                   {champId && <img src={getChampionImage(champId)} alt="" />}
                 </div>
@@ -302,8 +337,11 @@ function DraftHelper() {
               {redBans.map((champId, idx) => (
                 <div
                   key={idx}
-                  className="ban-slot"
+                  className={`ban-slot ${isSlotHighlighted('redBan', idx) ? 'drag-over' : ''}`}
                   onClick={() => handleSlotClick('red', 'ban', idx)}
+                  onDragOver={(e) => handleSlotDragOver(e, 'redBan', idx)}
+                  onDragLeave={handleSlotDragLeave}
+                  onDrop={(e) => handleSlotDrop(e, 'redBan', idx)}
                 >
                   {champId && <img src={getChampionImage(champId)} alt="" />}
                 </div>
@@ -342,10 +380,6 @@ function DraftHelper() {
           </button>
         </div>
       )}
-
-      <p style={{marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)'}}>
-        Right-click a champion to add notes. Click to add to draft board.
-      </p>
     </div>
   );
 }

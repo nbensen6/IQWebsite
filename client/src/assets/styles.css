@@ -549,6 +549,40 @@ tr:hover {
   filter: grayscale(100%);
 }
 
+/* Drag and drop styles */
+.champion-card.draggable {
+  cursor: grab;
+}
+
+.champion-card.draggable:active {
+  cursor: grabbing;
+}
+
+.draft-slot.drag-over {
+  border-color: var(--accent-gold);
+  border-style: solid;
+  background-color: rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+}
+
+.ban-slot.drag-over {
+  border-color: var(--accent-gold);
+  border-width: 2px;
+  background-color: rgba(245, 158, 11, 0.2);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.draft-slot,
+.ban-slot {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.draft-slot:hover,
+.ban-slot:hover {
+  border-color: var(--accent-gold-dark);
+}
+
 .draft-actions {
   display: flex;
   gap: 0.5rem;
