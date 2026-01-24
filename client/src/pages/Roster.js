@@ -437,191 +437,184 @@ function Roster() {
         </div>
       ) : (
         <div className="roster-grid">
-          {players.map(player => (
-            <div key={player.id} className="card player-card">
-              {isAdmin && (
-                <button
-                  className="delete-player-btn"
-                  onClick={() => handleDeletePlayer(player.id)}
-                  title="Remove from roster"
-                >
-                  ×
-                </button>
-              )}
-              <div className="player-avatar">
-                {player.profile_icon_id ? (
-                  <img
-                    src={getProfileIconUrl(player.profile_icon_id)}
-                    alt="Profile Icon"
-                    style={{width: '64px', height: '64px', borderRadius: '50%'}}
-                  />
-                ) : (
-                  ROLE_ICONS[player.role] || '🎮'
-                )}
-              </div>
-              <h3>{player.summoner_name}</h3>
-              {isAdmin && editingRole === player.id ? (
-                <select
-                  value={player.role}
-                  onChange={(e) => handleUpdateRole(player.id, e.target.value)}
-                  onBlur={() => setEditingRole(null)}
-                  autoFocus
-                  style={{padding: '0.25rem', marginBottom: '0.5rem'}}
-                >
-                  {ROLES.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              ) : (
-                <p
-                  className="player-role"
-                  onClick={() => isAdmin && setEditingRole(player.id)}
-                  style={isAdmin ? {cursor: 'pointer'} : {}}
-                  title={isAdmin ? 'Click to change role' : ''}
-                >
-                  {player.role}
-                </p>
-              )}
-              {player.username && (
-                <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>
-                  @{player.username}
-                </p>
-              )}
+          {players.map(player => {
+            const rank = getRankDisplay(player);
+            const canEdit = user && (user.role === 'admin' || user.id === player.user_id);
 
-              {/* OP.GG Link */}
-              {player.opgg_username && editingPlayer !== player.id ? (
-                <div style={{marginBottom: '0.5rem'}}>
-                  <a
-                    href={getOpggUrl(player)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-secondary btn-small"
-                    style={{display: 'inline-block', marginRight: '0.25rem'}}
-                  >
-                    View OP.GG
-                  </a>
-                  {user && (user.role === 'admin' || user.id === player.user_id) && (
+            return (
+              <div key={player.id} className="card player-card">
+                {/* Action Buttons */}
+                <div className="player-card-actions">
+                  {player.opgg_username && canEdit && (
                     <button
-                      className="btn btn-secondary btn-small"
-                      onClick={() => {
-                        setEditingPlayer(player.id);
-                        setOpggForm({
-                          username: player.opgg_username || '',
-                          region: player.opgg_region || 'na',
-                          iconId: player.profile_icon_id || ''
-                        });
-                      }}
+                      onClick={() => handleSyncRiot(player.id)}
+                      title="Sync Riot Data"
                     >
-                      Edit
+                      ↻
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      className="delete-btn"
+                      onClick={() => handleDeletePlayer(player.id)}
+                      title="Remove from roster"
+                    >
+                      ✕
                     </button>
                   )}
                 </div>
-              ) : user && (user.role === 'admin' || user.id === player.user_id) ? (
-                editingPlayer === player.id ? (
-                  <div style={{marginBottom: '0.5rem'}}>
-                    <input
-                      type="text"
-                      placeholder="Riot ID (Name#TAG)"
-                      value={opggForm.username}
-                      onChange={(e) => setOpggForm({...opggForm, username: e.target.value})}
-                      style={{width: '100%', marginBottom: '0.25rem', padding: '0.25rem'}}
+
+                {/* Avatar */}
+                <div className="player-avatar">
+                  {player.profile_icon_id ? (
+                    <img
+                      src={getProfileIconUrl(player.profile_icon_id)}
+                      alt="Profile Icon"
                     />
+                  ) : (
+                    ROLE_ICONS[player.role] || '🎮'
+                  )}
+                </div>
+
+                {/* Player Info */}
+                <div className="player-info">
+                  <div className="player-header">
+                    <h3 className="player-name">{player.summoner_name}</h3>
+                    {player.summoner_level && (
+                      <span className="player-level">Lv. {player.summoner_level}</span>
+                    )}
+                  </div>
+
+                  {/* Role Dropdown */}
+                  <div>
                     <select
-                      value={opggForm.region}
-                      onChange={(e) => setOpggForm({...opggForm, region: e.target.value})}
-                      style={{width: '100%', marginBottom: '0.25rem', padding: '0.25rem'}}
+                      className="player-role-select"
+                      value={player.role}
+                      onChange={(e) => handleUpdateRole(player.id, e.target.value)}
+                      disabled={!isAdmin}
                     >
-                      {REGIONS.map(r => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
+                      {ROLES.map(r => (
+                        <option key={r} value={r}>{r}</option>
                       ))}
                     </select>
-                    <input
-                      type="number"
-                      placeholder="Profile Icon ID (optional)"
-                      value={opggForm.iconId}
-                      onChange={(e) => setOpggForm({...opggForm, iconId: e.target.value})}
-                      style={{width: '100%', marginBottom: '0.25rem', padding: '0.25rem'}}
-                    />
-                    <div style={{display: 'flex', gap: '0.25rem'}}>
-                      <button
-                        className="btn btn-primary btn-small"
-                        onClick={() => handleUpdateOpgg(player.id)}
-                      >
-                        Save
-                      </button>
-                      <button
-                        className="btn btn-secondary btn-small"
-                        onClick={() => setEditingPlayer(null)}
-                      >
-                        Cancel
-                      </button>
+                  </div>
+
+                  {/* Rank Display */}
+                  {rank && (
+                    <div className="player-rank">
+                      <span className={`rank-tier ${rank.tier.toLowerCase()}`}>
+                        {rank.tier} {rank.division}
+                      </span>
+                      <span className="rank-lp">{rank.lp} LP</span>
+                      <span className="rank-record">
+                        <span className="wins">{rank.wins}W</span>
+                        {' '}
+                        <span className="losses">{rank.losses}L</span>
+                        {' '}({rank.winRate}%)
+                      </span>
                     </div>
+                  )}
+
+                  {/* Username */}
+                  {player.username && (
+                    <span className="player-username">@{player.username}</span>
+                  )}
+
+                  {/* Links */}
+                  <div className="player-links">
+                    {player.opgg_username ? (
+                      <>
+                        <a
+                          href={getOpggUrl(player)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="opgg-link"
+                        >
+                          OP.GG ↗
+                        </a>
+                        {canEdit && (
+                          <button
+                            className="opgg-link"
+                            style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}
+                            onClick={() => {
+                              setEditingPlayer(player.id);
+                              setOpggForm({
+                                username: player.opgg_username || '',
+                                region: player.opgg_region || 'na',
+                                iconId: player.profile_icon_id || ''
+                              });
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </>
+                    ) : canEdit && (
+                      <button
+                        className="opgg-link"
+                        style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}
+                        onClick={() => {
+                          setEditingPlayer(player.id);
+                          setOpggForm({ username: '', region: 'na', iconId: '' });
+                        }}
+                      >
+                        + Link Riot ID
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <button
-                    className="btn btn-secondary btn-small"
-                    style={{marginBottom: '0.5rem'}}
-                    onClick={() => {
-                      setEditingPlayer(player.id);
-                      setOpggForm({
-                        username: player.opgg_username || '',
-                        region: player.opgg_region || 'na',
-                        iconId: player.profile_icon_id || ''
-                      });
-                    }}
-                  >
-                    Link Riot ID
-                  </button>
-                )
-              ) : null}
 
-              {/* Rank Display */}
-              {getRankDisplay(player) && (
-                <div className="player-rank" style={{marginBottom: '0.5rem', fontSize: '0.85rem'}}>
-                  <strong style={{color: 'var(--accent-gold)'}}>
-                    {getRankDisplay(player).tier} {getRankDisplay(player).division}
-                  </strong>
-                  <span style={{color: 'var(--text-secondary)', marginLeft: '0.5rem'}}>
-                    {getRankDisplay(player).lp} LP
-                  </span>
-                  <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>
-                    {getRankDisplay(player).wins}W {getRankDisplay(player).losses}L ({getRankDisplay(player).winRate}%)
-                  </div>
+                  {/* Edit Form */}
+                  {editingPlayer === player.id && (
+                    <div className="player-edit-form">
+                      <input
+                        type="text"
+                        placeholder="Riot ID (Name#TAG)"
+                        value={opggForm.username}
+                        onChange={(e) => setOpggForm({...opggForm, username: e.target.value})}
+                      />
+                      <select
+                        value={opggForm.region}
+                        onChange={(e) => setOpggForm({...opggForm, region: e.target.value})}
+                      >
+                        {REGIONS.map(r => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
+                      <div className="form-actions">
+                        <button
+                          className="btn btn-primary btn-small"
+                          onClick={() => handleUpdateOpgg(player.id)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="btn btn-secondary btn-small"
+                          onClick={() => setEditingPlayer(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Champion Pool */}
+                  {player.champion_pool && (
+                    <div className="champion-pool">
+                      {player.champion_pool.split(',').map((champ, idx) => (
+                        <img
+                          key={idx}
+                          src={getChampionImage(champ.trim())}
+                          alt={champ.trim()}
+                          title={champ.trim()}
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* Sync Button */}
-              {player.opgg_username && user && (user.role === 'admin' || user.id === player.user_id) && (
-                <button
-                  className="btn btn-secondary btn-small"
-                  style={{marginBottom: '0.5rem', fontSize: '0.75rem'}}
-                  onClick={() => handleSyncRiot(player.id)}
-                >
-                  Sync Riot Data
-                </button>
-              )}
-
-              {player.summoner_level && (
-                <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>
-                  Level {player.summoner_level}
-                </div>
-              )}
-
-              {player.champion_pool && (
-                <div className="champion-pool">
-                  {player.champion_pool.split(',').map((champ, idx) => (
-                    <img
-                      key={idx}
-                      src={getChampionImage(champ.trim())}
-                      alt={champ.trim()}
-                      title={champ.trim()}
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
 

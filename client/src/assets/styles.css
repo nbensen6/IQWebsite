@@ -906,50 +906,233 @@ tr:hover {
 /* Roster page */
 .roster-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.5rem;
 }
 
 .player-card {
-  text-align: center;
+  position: relative;
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.player-avatar {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background-color: var(--bg-tertiary);
-  margin: 0 auto 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 3rem;
-  color: var(--accent-gold);
-  border: 3px solid var(--accent-gold);
+.player-card:hover {
+  transform: translateY(-2px);
   box-shadow: var(--glow-gold);
 }
 
-.player-card h3 {
-  color: var(--accent-gold);
-  margin-bottom: 0.5rem;
+.player-card-actions {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
-.player-role {
+.player-card-actions button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.player-card-actions button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--accent-gold);
+}
+
+.player-card-actions .delete-btn:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.player-avatar {
+  width: 80px;
+  height: 80px;
+  min-width: 80px;
+  border-radius: 50%;
+  background-color: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--accent-gold);
+  border: 3px solid var(--accent-gold);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);
+  overflow: hidden;
+}
+
+.player-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.player-card .player-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.player-level {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+}
+
+.player-role-select {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
   color: var(--accent-blue);
-  margin-bottom: 1rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.player-role-select:hover {
+  border-color: var(--accent-gold);
+}
+
+.player-role-select:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.player-rank {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.rank-tier {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.rank-tier.iron { color: #8b8b8b; }
+.rank-tier.bronze { color: #cd7f32; }
+.rank-tier.silver { color: #c0c0c0; }
+.rank-tier.gold { color: #ffd700; }
+.rank-tier.platinum { color: #4ee2c2; }
+.rank-tier.emerald { color: #50c878; }
+.rank-tier.diamond { color: #b9f2ff; }
+.rank-tier.master { color: #9d4dbb; }
+.rank-tier.grandmaster { color: #ef4444; }
+.rank-tier.challenger { color: #f4c874; }
+
+.rank-lp {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.rank-record {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.rank-record .wins { color: var(--success); }
+.rank-record .losses { color: var(--error); }
+
+.player-username {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.player-links {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.player-links .opgg-link {
+  font-size: 0.75rem;
+  color: var(--accent-gold);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.player-links .opgg-link:hover {
+  text-decoration: underline;
 }
 
 .champion-pool {
   display: flex;
-  gap: 0.5rem;
-  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
   flex-wrap: wrap;
 }
 
 .champion-pool img {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   border-radius: 4px;
+  border: 1px solid var(--border-color);
+  transition: transform 0.2s ease;
+}
+
+.champion-pool img:hover {
+  transform: scale(1.1);
+  border-color: var(--accent-gold);
+}
+
+.player-edit-form {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
+.player-edit-form input,
+.player-edit-form select {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.player-edit-form .form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 /* Announcements */
@@ -1326,30 +1509,4 @@ tr:hover {
 
 .user-status.linked {
   color: var(--success);
-}
-
-.delete-player-btn {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: var(--error);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.delete-player-btn:hover {
-  background: #dc2626;
-}
-
-.player-card {
-  position: relative;
 }
