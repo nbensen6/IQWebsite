@@ -1,11 +1,9 @@
 import React from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 
 function Navbar() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -17,7 +15,6 @@ function Navbar() {
     <nav className="navbar">
       <Link to="/" className="nav-brand">
         <img src="/logo.png" alt="IQ Logo" className="nav-logo" />
-        <h1>IQ Team</h1>
       </Link>
 
       <div className="nav-links">
@@ -35,10 +32,6 @@ function Navbar() {
       </div>
 
       <div className="nav-user">
-        <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
-
         {user ? (
           <>
             <span>{user.username}</span>
