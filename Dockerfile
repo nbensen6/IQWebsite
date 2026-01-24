@@ -32,8 +32,8 @@ COPY server/ ./
 # Copy built React app from frontend-build stage
 COPY --from=frontend-build /app/client/build ./public
 
-# Create data directory for database (will be mounted volume in production)
-RUN mkdir -p /data
+# Create data directory for database and uploads (will be mounted volume in production)
+RUN mkdir -p /data /data/uploads
 
 # Set environment variables
 ENV NODE_ENV=production

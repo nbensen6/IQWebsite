@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Stats from './pages/Stats';
 import DraftHelper from './pages/DraftHelper';
 import Notes from './pages/Notes';
+import Scouting from './pages/Scouting';
 import Roster from './pages/Roster';
 import Announcements from './pages/Announcements';
 
@@ -43,6 +44,11 @@ function App() {
           <Route path="/notes" element={
             <ProtectedRoute>
               <Notes />
+            </ProtectedRoute>
+          } />
+          <Route path="/scouting" element={
+            <ProtectedRoute>
+              <Scouting />
             </ProtectedRoute>
           } />
           <Route path="/roster" element={<Roster />} />
