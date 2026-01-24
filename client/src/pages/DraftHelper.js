@@ -18,7 +18,7 @@ function DraftHelper() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
-  const [version, setVersion] = useState('14.1.1');
+  const [, setVersion] = useState('14.1.1');
 
   const [bluePicks, setBluePicks] = useState([null, null, null, null, null]);
   const [redPicks, setRedPicks] = useState([null, null, null, null, null]);
