@@ -77,7 +77,7 @@ router.post('/', authenticateToken, requireAdmin, (req, res) => {
 router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
   try {
     const { id } = req.params;
-    const { summoner_name, role, champion_pool, user_id } = req.body;
+    const { summoner_name, role, champion_pool, user_id, opgg_username, opgg_region } = req.body;
 
     const player = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
     if (!player) {
@@ -86,13 +86,15 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
 
     db.prepare(`
       UPDATE players
-      SET summoner_name = ?, role = ?, champion_pool = ?, user_id = ?
+      SET summoner_name = ?, role = ?, champion_pool = ?, user_id = ?, opgg_username = ?, opgg_region = ?
       WHERE id = ?
     `).run(
       summoner_name || player.summoner_name,
       role || player.role,
       champion_pool !== undefined ? champion_pool : player.champion_pool,
       user_id !== undefined ? user_id : player.user_id,
+      opgg_username !== undefined ? opgg_username : player.opgg_username,
+      opgg_region !== undefined ? opgg_region : player.opgg_region,
       id
     );
 
@@ -101,6 +103,70 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
   } catch (error) {
     console.error('Error updating player:', error);
     res.status(500).json({ error: 'Failed to update player' });
+  }
+});
+
+// Update player's op.gg link (authenticated users can update their own)
+router.patch('/:id/opgg', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { opgg_username, opgg_region } = req.body;
+
+    const player = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    // Allow if user is admin or if the player is linked to their account
+    if (req.user.role !== 'admin' && player.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to update this player' });
+    }
+
+    db.prepare(`
+      UPDATE players
+      SET opgg_username = ?, opgg_region = ?
+      WHERE id = ?
+    `).run(
+      opgg_username || null,
+      opgg_region || 'na',
+      id
+    );
+
+    const updated = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating player op.gg:', error);
+    res.status(500).json({ error: 'Failed to update player op.gg' });
+  }
+});
+
+// Fetch op.gg data for a player (scrapes public profile)
+router.get('/:id/opgg-data', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const player = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    if (!player.opgg_username) {
+      return res.status(400).json({ error: 'Player has no op.gg linked' });
+    }
+
+    // Return the op.gg URL - client will fetch via iframe/embed or we'll use their API
+    const region = player.opgg_region || 'na';
+    const opggUrl = `https://www.op.gg/summoners/${region}/${encodeURIComponent(player.opgg_username)}`;
+
+    res.json({
+      player_id: player.id,
+      opgg_username: player.opgg_username,
+      opgg_region: region,
+      opgg_url: opggUrl
+    });
+  } catch (error) {
+    console.error('Error fetching op.gg data:', error);
+    res.status(500).json({ error: 'Failed to fetch op.gg data' });
   }
 });
 

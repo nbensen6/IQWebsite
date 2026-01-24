@@ -12,6 +12,8 @@ function Scouting() {
   const [activeTab, setActiveTab] = useState('images');
   const [teamNotes, setTeamNotes] = useState([]);
   const [teamImages, setTeamImages] = useState([]);
+  const [teamDrafts, setTeamDrafts] = useState([]);
+  const [version, setVersion] = useState('14.1.1');
 
   const [showNewTeam, setShowNewTeam] = useState(false);
   const [newTeamName, setNewTeamName] = useState('');
@@ -29,6 +31,7 @@ function Scouting() {
 
   useEffect(() => {
     fetchTeams();
+    fetchVersion();
   }, []);
 
   const fetchTeams = async () => {
@@ -42,14 +45,26 @@ function Scouting() {
     }
   };
 
+  const fetchVersion = async () => {
+    try {
+      const response = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+      const versions = await response.json();
+      setVersion(versions[0]);
+    } catch (err) {
+      console.error('Failed to fetch version');
+    }
+  };
+
   const fetchTeamData = useCallback(async (teamId) => {
     try {
-      const [notesRes, imagesRes] = await Promise.all([
+      const [notesRes, imagesRes, draftsRes] = await Promise.all([
         api.get(`/scouting/teams/${teamId}/notes`),
-        api.get(`/scouting/teams/${teamId}/images`)
+        api.get(`/scouting/teams/${teamId}/images`),
+        api.get(`/scouting/teams/${teamId}/drafts`)
       ]);
       setTeamNotes(notesRes.data);
       setTeamImages(imagesRes.data);
+      setTeamDrafts(draftsRes.data);
     } catch (err) {
       setError('Failed to load team data');
     }
@@ -207,6 +222,30 @@ function Scouting() {
     }
   };
 
+  const handleDeleteDraft = async (draftId) => {
+    if (!window.confirm('Delete this saved draft?')) return;
+
+    try {
+      await api.delete(`/scouting/drafts/${draftId}`);
+      setTeamDrafts(teamDrafts.filter(d => d.id !== draftId));
+    } catch (err) {
+      setError('Failed to delete draft');
+    }
+  };
+
+  const getChampionImage = (champId) => {
+    if (!champId) return null;
+    return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champId}.png`;
+  };
+
+  const parseDraftPicks = (picksStr) => {
+    try {
+      return JSON.parse(picksStr);
+    } catch {
+      return [];
+    }
+  };
+
   const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short',
@@ -308,6 +347,12 @@ function Scouting() {
                 Draft Images ({teamImages.length})
               </button>
               <button
+                className={`team-tab ${activeTab === 'drafts' ? 'active' : ''}`}
+                onClick={() => setActiveTab('drafts')}
+              >
+                Saved Drafts ({teamDrafts.length})
+              </button>
+              <button
                 className={`team-tab ${activeTab === 'notes' ? 'active' : ''}`}
                 onClick={() => setActiveTab('notes')}
               >
@@ -363,6 +408,137 @@ function Scouting() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'drafts' && (
+              <div className="drafts-tab">
+                <p style={{color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem'}}>
+                  Drafts saved from the Draft Helper. Go to Draft Helper to create and save new drafts.
+                </p>
+
+                {teamDrafts.length === 0 ? (
+                  <p style={{color: 'var(--text-secondary)'}}>
+                    No saved drafts yet. Use the Draft Helper to create and save drafts against this team.
+                  </p>
+                ) : (
+                  <div className="saved-drafts-list">
+                    {teamDrafts.map(draft => {
+                      const bluePicks = parseDraftPicks(draft.blue_picks);
+                      const redPicks = parseDraftPicks(draft.red_picks);
+                      const blueBans = parseDraftPicks(draft.blue_bans);
+                      const redBans = parseDraftPicks(draft.red_bans);
+
+                      return (
+                        <div key={draft.id} className="saved-draft-card card mb-2">
+                          <div className="card-header">
+                            <div>
+                              <h4 style={{color: 'var(--accent-gold)'}}>{draft.name}</h4>
+                              <small style={{color: 'var(--text-secondary)'}}>
+                                {formatDate(draft.created_at)} by {draft.author_name}
+                              </small>
+                            </div>
+                            <button
+                              className="btn btn-danger btn-small"
+                              onClick={() => handleDeleteDraft(draft.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+
+                          <div className="draft-display">
+                            <div className="draft-side blue-side">
+                              <h5>Blue Team (Ally)</h5>
+                              <div className="picks-display">
+                                <span className="label">Picks:</span>
+                                <div className="champ-row">
+                                  {bluePicks.map((champId, idx) => (
+                                    champId ? (
+                                      <img
+                                        key={idx}
+                                        src={getChampionImage(champId)}
+                                        alt={champId}
+                                        title={champId}
+                                        className="draft-champ-img"
+                                      />
+                                    ) : (
+                                      <div key={idx} className="empty-slot" />
+                                    )
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="bans-display">
+                                <span className="label">Bans:</span>
+                                <div className="champ-row bans">
+                                  {blueBans.map((champId, idx) => (
+                                    champId ? (
+                                      <img
+                                        key={idx}
+                                        src={getChampionImage(champId)}
+                                        alt={champId}
+                                        title={champId}
+                                        className="draft-champ-img banned"
+                                      />
+                                    ) : (
+                                      <div key={idx} className="empty-slot small" />
+                                    )
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="draft-side red-side">
+                              <h5>Red Team (Enemy)</h5>
+                              <div className="picks-display">
+                                <span className="label">Picks:</span>
+                                <div className="champ-row">
+                                  {redPicks.map((champId, idx) => (
+                                    champId ? (
+                                      <img
+                                        key={idx}
+                                        src={getChampionImage(champId)}
+                                        alt={champId}
+                                        title={champId}
+                                        className="draft-champ-img"
+                                      />
+                                    ) : (
+                                      <div key={idx} className="empty-slot" />
+                                    )
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="bans-display">
+                                <span className="label">Bans:</span>
+                                <div className="champ-row bans">
+                                  {redBans.map((champId, idx) => (
+                                    champId ? (
+                                      <img
+                                        key={idx}
+                                        src={getChampionImage(champId)}
+                                        alt={champId}
+                                        title={champId}
+                                        className="draft-champ-img banned"
+                                      />
+                                    ) : (
+                                      <div key={idx} className="empty-slot small" />
+                                    )
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {draft.notes && (
+                            <div className="draft-notes" style={{marginTop: '0.5rem', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '4px'}}>
+                              <small style={{color: 'var(--text-secondary)'}}>Notes:</small>
+                              <p style={{margin: 0, whiteSpace: 'pre-wrap'}}>{draft.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

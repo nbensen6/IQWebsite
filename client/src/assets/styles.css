@@ -1030,3 +1030,210 @@ tr:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-gold);
 }
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modal-content {
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Team Compositions */
+.comp-form {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.comp-champion-selectors {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.comp-suggestions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.comp-suggestion-card {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.comp-suggestion-card h4 {
+  color: var(--accent-gold);
+  margin-bottom: 0.5rem;
+}
+
+.comp-champions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.comp-champ {
+  text-align: center;
+}
+
+.comp-champ img {
+  width: 50px;
+  height: 50px;
+  border-radius: 4px;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.comp-champ span {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.compositions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.composition-card {
+  background: var(--bg-tertiary);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.comp-header h4 {
+  color: var(--accent-gold);
+}
+
+.comp-tags {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.comp-tag {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+}
+
+/* Saved Drafts Display */
+.saved-drafts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.saved-draft-card {
+  background: var(--bg-tertiary);
+}
+
+.draft-display {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.draft-side h5 {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.draft-side.blue-side h5 {
+  color: var(--accent-blue);
+}
+
+.draft-side.red-side h5 {
+  color: var(--error);
+}
+
+.picks-display,
+.bans-display {
+  margin-bottom: 0.5rem;
+}
+
+.picks-display .label,
+.bans-display .label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.champ-row {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.draft-champ-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  border: 2px solid var(--border-color);
+}
+
+.draft-champ-img.banned {
+  filter: grayscale(100%);
+  opacity: 0.7;
+  border-color: var(--error);
+}
+
+.empty-slot {
+  width: 40px;
+  height: 40px;
+  background: var(--bg-secondary);
+  border: 2px dashed var(--border-color);
+  border-radius: 4px;
+}
+
+.empty-slot.small {
+  width: 30px;
+  height: 30px;
+}
+
+.champ-row.bans .draft-champ-img {
+  width: 30px;
+  height: 30px;
+}
+
+@media (max-width: 600px) {
+  .draft-display {
+    grid-template-columns: 1fr;
+  }
+
+  .comp-champion-selectors {
+    flex-direction: column;
+  }
+}

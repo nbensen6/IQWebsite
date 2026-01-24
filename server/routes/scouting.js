@@ -318,4 +318,78 @@ router.get('/uploads/:filename', (req, res) => {
   }
 });
 
+// ============= SAVED DRAFTS =============
+
+// Get all saved drafts for a team
+router.get('/teams/:teamId/drafts', authenticateToken, (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const drafts = db.prepare(`
+      SELECT sd.*, u.username as author_name
+      FROM saved_drafts sd
+      LEFT JOIN users u ON sd.user_id = u.id
+      WHERE sd.team_id = ?
+      ORDER BY sd.created_at DESC
+    `).all(teamId);
+
+    res.json(drafts);
+  } catch (error) {
+    console.error('Error fetching drafts:', error);
+    res.status(500).json({ error: 'Failed to fetch drafts' });
+  }
+});
+
+// Save a draft for a team
+router.post('/teams/:teamId/drafts', authenticateToken, (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { name, blue_picks, red_picks, blue_bans, red_bans, notes } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Draft name is required' });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO saved_drafts (team_id, user_id, name, blue_picks, red_picks, blue_bans, red_bans, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      teamId,
+      req.user.id,
+      name,
+      JSON.stringify(blue_picks || []),
+      JSON.stringify(red_picks || []),
+      JSON.stringify(blue_bans || []),
+      JSON.stringify(red_bans || []),
+      notes || ''
+    );
+
+    // Update team's updated_at
+    db.prepare('UPDATE enemy_teams SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(teamId);
+
+    const draft = db.prepare(`
+      SELECT sd.*, u.username as author_name
+      FROM saved_drafts sd
+      LEFT JOIN users u ON sd.user_id = u.id
+      WHERE sd.id = ?
+    `).get(result.lastInsertRowid);
+
+    res.status(201).json(draft);
+  } catch (error) {
+    console.error('Error saving draft:', error);
+    res.status(500).json({ error: 'Failed to save draft' });
+  }
+});
+
+// Delete a saved draft
+router.delete('/drafts/:id', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM saved_drafts WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting draft:', error);
+    res.status(500).json({ error: 'Failed to delete draft' });
+  }
+});
+
 module.exports = router;

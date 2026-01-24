@@ -31,10 +31,28 @@ function DraftHelper() {
   const [selectedChampion, setSelectedChampion] = useState(null);
   const [championNotes, setChampionNotes] = useState({});
 
+  // Save draft state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [enemyTeams, setEnemyTeams] = useState([]);
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [draftName, setDraftName] = useState('');
+  const [draftNotes, setDraftNotes] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
+
   useEffect(() => {
     fetchChampions();
     fetchNotes();
+    fetchTeams();
   }, []);
+
+  const fetchTeams = async () => {
+    try {
+      const response = await api.get('/scouting/teams');
+      setEnemyTeams(response.data);
+    } catch (err) {
+      console.error('Failed to load teams');
+    }
+  };
 
   const fetchChampions = async () => {
     try {
@@ -220,6 +238,37 @@ function DraftHelper() {
     return dragOverSlot?.type === slotType && dragOverSlot?.index === index;
   };
 
+  const hasDraftContent = () => {
+    return bluePicks.some(p => p) || redPicks.some(p => p) ||
+           blueBans.some(p => p) || redBans.some(p => p);
+  };
+
+  const handleSaveDraft = async (e) => {
+    e.preventDefault();
+    if (!selectedTeamId || !draftName.trim()) return;
+
+    try {
+      await api.post(`/scouting/teams/${selectedTeamId}/drafts`, {
+        name: draftName,
+        blue_picks: bluePicks,
+        red_picks: redPicks,
+        blue_bans: blueBans,
+        red_bans: redBans,
+        notes: draftNotes
+      });
+      setSaveSuccess('Draft saved successfully!');
+      setTimeout(() => {
+        setShowSaveModal(false);
+        setDraftName('');
+        setDraftNotes('');
+        setSelectedTeamId('');
+        setSaveSuccess('');
+      }, 1500);
+    } catch (err) {
+      setError('Failed to save draft');
+    }
+  };
+
   if (loading) return <div className="loading">Loading champions...</div>;
   if (error) return <div className="error">{error}</div>;
 
@@ -353,9 +402,75 @@ function DraftHelper() {
             <button className="btn btn-secondary btn-small" onClick={resetDraft}>
               Reset Draft
             </button>
+            {hasDraftContent() && (
+              <button
+                className="btn btn-primary btn-small"
+                onClick={() => setShowSaveModal(true)}
+              >
+                Save to Team
+              </button>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Save Draft Modal */}
+      {showSaveModal && (
+        <div className="modal-overlay" onClick={() => setShowSaveModal(false)}>
+          <div className="modal-content card" onClick={e => e.stopPropagation()}>
+            <div className="card-header">
+              <h3 className="card-title">Save Draft to Team</h3>
+              <button className="btn btn-secondary btn-small" onClick={() => setShowSaveModal(false)}>
+                X
+              </button>
+            </div>
+            {saveSuccess ? (
+              <div className="success">{saveSuccess}</div>
+            ) : (
+              <form onSubmit={handleSaveDraft}>
+                <div className="form-group">
+                  <label>Enemy Team</label>
+                  <select
+                    value={selectedTeamId}
+                    onChange={(e) => setSelectedTeamId(e.target.value)}
+                    required
+                  >
+                    <option value="">Select a team...</option>
+                    {enemyTeams.map(team => (
+                      <option key={team.id} value={team.id}>{team.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Draft Name</label>
+                  <input
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    placeholder="e.g., Week 3 Game 1"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Notes (optional)</label>
+                  <textarea
+                    value={draftNotes}
+                    onChange={(e) => setDraftNotes(e.target.value)}
+                    placeholder="Add any notes about this draft..."
+                    rows={3}
+                  />
+                </div>
+                <div style={{display: 'flex', gap: '0.5rem'}}>
+                  <button type="submit" className="btn btn-primary">Save Draft</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowSaveModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       {selectedChampion && (
         <div className="card mt-3" style={{maxWidth: '600px'}}>

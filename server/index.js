@@ -10,6 +10,7 @@ const notesRoutes = require('./routes/notes');
 const playersRoutes = require('./routes/players');
 const announcementsRoutes = require('./routes/announcements');
 const scoutingRoutes = require('./routes/scouting');
+const compositionsRoutes = require('./routes/compositions');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -25,6 +26,7 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/announcements', announcementsRoutes);
 app.use('/api/scouting', scoutingRoutes);
+app.use('/api/compositions', compositionsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

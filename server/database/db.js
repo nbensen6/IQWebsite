@@ -114,7 +114,51 @@ db.exec(`
     FOREIGN KEY (team_id) REFERENCES enemy_teams(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  -- Saved drafts linked to enemy teams
+  CREATE TABLE IF NOT EXISTS saved_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    blue_picks TEXT NOT NULL,
+    red_picks TEXT NOT NULL,
+    blue_bans TEXT NOT NULL,
+    red_bans TEXT NOT NULL,
+    notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES enemy_teams(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  -- Team compositions for our team
+  CREATE TABLE IF NOT EXISTS team_compositions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    top_champion TEXT,
+    jungle_champion TEXT,
+    mid_champion TEXT,
+    adc_champion TEXT,
+    support_champion TEXT,
+    tags TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
+
+// Add opgg columns to players table if they don't exist
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN opgg_username TEXT`);
+} catch (e) {
+  // Column already exists
+}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN opgg_region TEXT DEFAULT 'na'`);
+} catch (e) {
+  // Column already exists
+}
 
 console.log('Database initialized successfully');
 
