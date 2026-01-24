@@ -159,6 +159,11 @@ try {
 } catch (e) {
   // Column already exists
 }
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN profile_icon_id INTEGER`);
+} catch (e) {
+  // Column already exists
+}
 
 console.log('Database initialized successfully');
 

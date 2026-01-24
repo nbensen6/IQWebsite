@@ -35,7 +35,8 @@ function Roster() {
   const [compositions, setCompositions] = useState([]);
   const [showCompForm, setShowCompForm] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
-  const [opggForm, setOpggForm] = useState({ username: '', region: 'na' });
+  const [editingRole, setEditingRole] = useState(null);
+  const [opggForm, setOpggForm] = useState({ username: '', region: 'na', iconId: '' });
 
   // Admin state
   const [users, setUsers] = useState([]);
@@ -125,21 +126,40 @@ function Roster() {
     return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champId}.png`;
   };
 
+  const getProfileIconUrl = (iconId) => {
+    if (!iconId) return null;
+    return `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${iconId}.png`;
+  };
+
   const handleUpdateOpgg = async (playerId) => {
     try {
+      const iconId = opggForm.iconId ? parseInt(opggForm.iconId) : null;
       await api.patch(`/players/${playerId}/opgg`, {
         opgg_username: opggForm.username,
-        opgg_region: opggForm.region
+        opgg_region: opggForm.region,
+        profile_icon_id: iconId
       });
       setPlayers(players.map(p =>
         p.id === playerId
-          ? { ...p, opgg_username: opggForm.username, opgg_region: opggForm.region }
+          ? { ...p, opgg_username: opggForm.username, opgg_region: opggForm.region, profile_icon_id: iconId }
           : p
       ));
       setEditingPlayer(null);
-      setOpggForm({ username: '', region: 'na' });
+      setOpggForm({ username: '', region: 'na', iconId: '' });
     } catch (err) {
       console.error('Failed to update op.gg');
+    }
+  };
+
+  const handleUpdateRole = async (playerId, newRole) => {
+    try {
+      await api.patch(`/players/${playerId}/role`, { role: newRole });
+      setPlayers(players.map(p =>
+        p.id === playerId ? { ...p, role: newRole } : p
+      ));
+      setEditingRole(null);
+    } catch (err) {
+      console.error('Failed to update role');
     }
   };
 
@@ -402,10 +422,39 @@ function Roster() {
                 </button>
               )}
               <div className="player-avatar">
-                {ROLE_ICONS[player.role] || '🎮'}
+                {player.profile_icon_id ? (
+                  <img
+                    src={getProfileIconUrl(player.profile_icon_id)}
+                    alt="Profile Icon"
+                    style={{width: '64px', height: '64px', borderRadius: '50%'}}
+                  />
+                ) : (
+                  ROLE_ICONS[player.role] || '🎮'
+                )}
               </div>
               <h3>{player.summoner_name}</h3>
-              <p className="player-role">{player.role}</p>
+              {isAdmin && editingRole === player.id ? (
+                <select
+                  value={player.role}
+                  onChange={(e) => handleUpdateRole(player.id, e.target.value)}
+                  onBlur={() => setEditingRole(null)}
+                  autoFocus
+                  style={{padding: '0.25rem', marginBottom: '0.5rem'}}
+                >
+                  {ROLES.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              ) : (
+                <p
+                  className="player-role"
+                  onClick={() => isAdmin && setEditingRole(player.id)}
+                  style={isAdmin ? {cursor: 'pointer'} : {}}
+                  title={isAdmin ? 'Click to change role' : ''}
+                >
+                  {player.role}
+                </p>
+              )}
               {player.username && (
                 <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>
                   @{player.username}
@@ -413,16 +462,33 @@ function Roster() {
               )}
 
               {/* OP.GG Link */}
-              {player.opgg_username ? (
-                <a
-                  href={getOpggUrl(player)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-secondary btn-small"
-                  style={{marginBottom: '0.5rem', display: 'inline-block'}}
-                >
-                  View OP.GG ({player.opgg_region?.toUpperCase()})
-                </a>
+              {player.opgg_username && editingPlayer !== player.id ? (
+                <div style={{marginBottom: '0.5rem'}}>
+                  <a
+                    href={getOpggUrl(player)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary btn-small"
+                    style={{display: 'inline-block', marginRight: '0.25rem'}}
+                  >
+                    View OP.GG
+                  </a>
+                  {user && (user.role === 'admin' || user.id === player.user_id) && (
+                    <button
+                      className="btn btn-secondary btn-small"
+                      onClick={() => {
+                        setEditingPlayer(player.id);
+                        setOpggForm({
+                          username: player.opgg_username || '',
+                          region: player.opgg_region || 'na',
+                          iconId: player.profile_icon_id || ''
+                        });
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
               ) : user && (user.role === 'admin' || user.id === player.user_id) ? (
                 editingPlayer === player.id ? (
                   <div style={{marginBottom: '0.5rem'}}>
@@ -442,6 +508,13 @@ function Roster() {
                         <option key={r.value} value={r.value}>{r.label}</option>
                       ))}
                     </select>
+                    <input
+                      type="number"
+                      placeholder="Profile Icon ID (optional)"
+                      value={opggForm.iconId}
+                      onChange={(e) => setOpggForm({...opggForm, iconId: e.target.value})}
+                      style={{width: '100%', marginBottom: '0.25rem', padding: '0.25rem'}}
+                    />
                     <div style={{display: 'flex', gap: '0.25rem'}}>
                       <button
                         className="btn btn-primary btn-small"
@@ -465,7 +538,8 @@ function Roster() {
                       setEditingPlayer(player.id);
                       setOpggForm({
                         username: player.opgg_username || '',
-                        region: player.opgg_region || 'na'
+                        region: player.opgg_region || 'na',
+                        iconId: player.profile_icon_id || ''
                       });
                     }}
                   >

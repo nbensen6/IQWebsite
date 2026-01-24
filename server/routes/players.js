@@ -119,11 +119,36 @@ router.put('/:id', authenticateToken, requireAdmin, (req, res) => {
   }
 });
 
-// Update player's op.gg link (authenticated users can update their own)
+// Update player's role (admin only)
+router.patch('/:id/role', authenticateToken, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!['Top', 'Jungle', 'Mid', 'ADC', 'Support'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const player = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    db.prepare('UPDATE players SET role = ? WHERE id = ?').run(role, id);
+
+    const updated = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating player role:', error);
+    res.status(500).json({ error: 'Failed to update player role' });
+  }
+});
+
+// Update player's op.gg link and profile icon (authenticated users can update their own)
 router.patch('/:id/opgg', authenticateToken, (req, res) => {
   try {
     const { id } = req.params;
-    const { opgg_username, opgg_region } = req.body;
+    const { opgg_username, opgg_region, profile_icon_id } = req.body;
 
     const player = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
     if (!player) {
@@ -137,11 +162,12 @@ router.patch('/:id/opgg', authenticateToken, (req, res) => {
 
     db.prepare(`
       UPDATE players
-      SET opgg_username = ?, opgg_region = ?
+      SET opgg_username = ?, opgg_region = ?, profile_icon_id = ?
       WHERE id = ?
     `).run(
-      opgg_username || null,
-      opgg_region || 'na',
+      opgg_username !== undefined ? opgg_username : player.opgg_username,
+      opgg_region || player.opgg_region || 'na',
+      profile_icon_id !== undefined ? profile_icon_id : player.profile_icon_id,
       id
     );
 
