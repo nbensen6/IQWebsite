@@ -31,9 +31,16 @@ app.get('/api/health', (req, res) => {
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  // In Docker, static files are in ./public; locally they're in ../client/build
+  const staticPath = path.join(__dirname, 'public');
+  const altStaticPath = path.join(__dirname, '../client/build');
+  const fs = require('fs');
+
+  const servePath = fs.existsSync(staticPath) ? staticPath : altStaticPath;
+
+  app.use(express.static(servePath));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+    res.sendFile(path.join(servePath, 'index.html'));
   });
 }
 
@@ -43,6 +50,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });

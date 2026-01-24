@@ -1,7 +1,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'iq.db');
+// In production (Fly.io), use /data for persistent storage
+// In development, use ./database directory
+const dbDir = process.env.NODE_ENV === 'production' ? '/data' : __dirname;
+const dbPath = path.join(dbDir, 'iq.db');
 const db = new Database(dbPath);
 
 // Enable foreign keys
