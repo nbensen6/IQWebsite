@@ -35,7 +35,6 @@ function Roster() {
   const [compositions, setCompositions] = useState([]);
   const [showCompForm, setShowCompForm] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
-  const [editingRole, setEditingRole] = useState(null);
   const [opggForm, setOpggForm] = useState({ username: '', region: 'na', iconId: '' });
 
   // Admin state
