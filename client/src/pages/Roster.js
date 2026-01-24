@@ -10,6 +10,8 @@ const ROLE_ICONS = {
   Support: '🛡️'
 };
 
+const ROLES = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
+
 const REGIONS = [
   { value: 'na', label: 'NA' },
   { value: 'euw', label: 'EUW' },
@@ -34,6 +36,18 @@ function Roster() {
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [opggForm, setOpggForm] = useState({ username: '', region: 'na' });
 
+  // Admin state
+  const [users, setUsers] = useState([]);
+  const [showAddPlayer, setShowAddPlayer] = useState(false);
+  const [newPlayer, setNewPlayer] = useState({
+    user_id: '',
+    summoner_name: '',
+    role: 'Top',
+    champion_pool: '',
+    opgg_username: '',
+    opgg_region: 'na'
+  });
+
   // New composition form state
   const [newComp, setNewComp] = useState({
     name: '',
@@ -54,6 +68,12 @@ function Roster() {
     fetchCompositions();
   }, []);
 
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      fetchUsers();
+    }
+  }, [user]);
+
   const fetchPlayers = async () => {
     try {
       const response = await api.get('/players');
@@ -62,6 +82,15 @@ function Roster() {
       console.error('Failed to load players');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get('/auth/users');
+      setUsers(response.data);
+    } catch (err) {
+      console.error('Failed to load users');
     }
   };
 
@@ -110,6 +139,41 @@ function Roster() {
       setOpggForm({ username: '', region: 'na' });
     } catch (err) {
       console.error('Failed to update op.gg');
+    }
+  };
+
+  const handleAddPlayer = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await api.post('/players', {
+        ...newPlayer,
+        user_id: newPlayer.user_id || null
+      });
+      setPlayers([...players, response.data]);
+      setNewPlayer({
+        user_id: '',
+        summoner_name: '',
+        role: 'Top',
+        champion_pool: '',
+        opgg_username: '',
+        opgg_region: 'na'
+      });
+      setShowAddPlayer(false);
+      fetchUsers(); // Refresh users to update player_id linkage
+    } catch (err) {
+      console.error('Failed to add player');
+      alert(err.response?.data?.error || 'Failed to add player');
+    }
+  };
+
+  const handleDeletePlayer = async (playerId) => {
+    if (!window.confirm('Remove this player from the roster?')) return;
+    try {
+      await api.delete(`/players/${playerId}`);
+      setPlayers(players.filter(p => p.id !== playerId));
+      fetchUsers();
+    } catch (err) {
+      console.error('Failed to delete player');
     }
   };
 
@@ -193,30 +257,155 @@ function Roster() {
     return suggestions;
   };
 
+  // Get users not yet linked to a player
+  const getUnlinkedUsers = () => {
+    return users.filter(u => !u.player_id);
+  };
+
   if (loading) return <div className="loading">Loading roster...</div>;
 
   const compSuggestions = getCompSuggestions();
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="roster-page">
       <h1 style={{marginBottom: '1.5rem', textAlign: 'center'}}>Team Roster</h1>
 
+      {/* Admin Panel */}
+      {isAdmin && (
+        <div className="card mb-3">
+          <div className="card-header">
+            <h3 className="card-title">Admin Panel</h3>
+            <button
+              className="btn btn-primary btn-small"
+              onClick={() => setShowAddPlayer(!showAddPlayer)}
+            >
+              {showAddPlayer ? 'Cancel' : '+ Add Player'}
+            </button>
+          </div>
+
+          {showAddPlayer && (
+            <form onSubmit={handleAddPlayer} className="add-player-form">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Link to User (optional)</label>
+                  <select
+                    value={newPlayer.user_id}
+                    onChange={(e) => setNewPlayer({...newPlayer, user_id: e.target.value})}
+                  >
+                    <option value="">No linked user</option>
+                    {getUnlinkedUsers().map(u => (
+                      <option key={u.id} value={u.id}>{u.username}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Summoner Name *</label>
+                  <input
+                    type="text"
+                    value={newPlayer.summoner_name}
+                    onChange={(e) => setNewPlayer({...newPlayer, summoner_name: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Role *</label>
+                  <select
+                    value={newPlayer.role}
+                    onChange={(e) => setNewPlayer({...newPlayer, role: e.target.value})}
+                  >
+                    {ROLES.map(r => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Champion Pool (comma separated)</label>
+                  <input
+                    type="text"
+                    value={newPlayer.champion_pool}
+                    onChange={(e) => setNewPlayer({...newPlayer, champion_pool: e.target.value})}
+                    placeholder="e.g., Jinx, Caitlyn, Aphelios"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>OP.GG Username</label>
+                  <input
+                    type="text"
+                    value={newPlayer.opgg_username}
+                    onChange={(e) => setNewPlayer({...newPlayer, opgg_username: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Region</label>
+                  <select
+                    value={newPlayer.opgg_region}
+                    onChange={(e) => setNewPlayer({...newPlayer, opgg_region: e.target.value})}
+                  >
+                    {REGIONS.map(r => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary">Add to Roster</button>
+            </form>
+          )}
+
+          {/* Registered Users */}
+          <div style={{marginTop: '1rem'}}>
+            <h4 style={{marginBottom: '0.5rem'}}>Registered Users ({users.length})</h4>
+            <div className="users-list">
+              {users.map(u => (
+                <div key={u.id} className="user-item">
+                  <span className="user-name">{u.username}</span>
+                  <span className="user-role">{u.role}</span>
+                  {u.player_id ? (
+                    <span className="user-status linked">On Roster</span>
+                  ) : (
+                    <span className="user-status">Not on roster</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {players.length === 0 ? (
         <div className="card" style={{textAlign: 'center', padding: '3rem'}}>
           <p>No players registered yet.</p>
-          <p style={{color: 'var(--text-secondary)', marginTop: '1rem'}}>
-            Players can be added by admins or through the player profile settings.
-          </p>
+          {isAdmin && (
+            <p style={{color: 'var(--text-secondary)', marginTop: '1rem'}}>
+              Use the Admin Panel above to add players to the roster.
+            </p>
+          )}
         </div>
       ) : (
         <div className="roster-grid">
           {players.map(player => (
             <div key={player.id} className="card player-card">
+              {isAdmin && (
+                <button
+                  className="delete-player-btn"
+                  onClick={() => handleDeletePlayer(player.id)}
+                  title="Remove from roster"
+                >
+                  ×
+                </button>
+              )}
               <div className="player-avatar">
                 {ROLE_ICONS[player.role] || '🎮'}
               </div>
               <h3>{player.summoner_name}</h3>
               <p className="player-role">{player.role}</p>
+              {player.username && (
+                <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>
+                  @{player.username}
+                </p>
+              )}
 
               {/* OP.GG Link */}
               {player.opgg_username ? (
@@ -457,14 +646,6 @@ function Roster() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className="card mt-3" style={{textAlign: 'center'}}>
-        <h3 className="card-title">About IQ</h3>
-        <p style={{color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto'}}>
-          IQ is a competitive League of Legends team focused on improvement, teamwork, and having fun.
-          We practice regularly and compete in amateur tournaments.
-        </p>
       </div>
     </div>
   );

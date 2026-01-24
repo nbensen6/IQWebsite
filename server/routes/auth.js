@@ -98,4 +98,65 @@ router.get('/verify', authenticateToken, (req, res) => {
   res.json({ user: req.user });
 });
 
+// Get all users (admin only)
+router.get('/users', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const users = db.prepare(`
+      SELECT u.id, u.username, u.email, u.role, u.created_at,
+        (SELECT id FROM players WHERE user_id = u.id) as player_id
+      FROM users u
+      ORDER BY u.created_at DESC
+    `).all();
+
+    res.json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Update user role (admin only)
+router.patch('/users/:id/role', authenticateToken, (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!['admin', 'player', 'viewer'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+    const user = db.prepare('SELECT id, username, email, role FROM users WHERE id = ?').get(id);
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ error: 'Failed to update user role' });
+  }
+});
+
+// Bootstrap admin (one-time use to make bensen admin)
+router.post('/bootstrap-admin', (req, res) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE username = ?').get('bensen');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    db.prepare('UPDATE users SET role = ? WHERE username = ?').run('admin', 'bensen');
+    res.json({ success: true, message: 'bensen is now admin' });
+  } catch (error) {
+    console.error('Error bootstrapping admin:', error);
+    res.status(500).json({ error: 'Failed to bootstrap admin' });
+  }
+});
+
 module.exports = router;

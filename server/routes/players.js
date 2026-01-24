@@ -54,18 +54,31 @@ router.get('/:id', (req, res) => {
 // Create player (admin only)
 router.post('/', authenticateToken, requireAdmin, (req, res) => {
   try {
-    const { summoner_name, role, champion_pool, user_id } = req.body;
+    const { summoner_name, role, champion_pool, user_id, opgg_username, opgg_region } = req.body;
 
     if (!summoner_name || !role) {
       return res.status(400).json({ error: 'Summoner name and role are required' });
     }
 
-    const result = db.prepare(`
-      INSERT INTO players (user_id, summoner_name, role, champion_pool)
-      VALUES (?, ?, ?, ?)
-    `).run(user_id || null, summoner_name, role, champion_pool || '');
+    // Check if user_id is already linked to a player
+    if (user_id) {
+      const existingPlayer = db.prepare('SELECT id FROM players WHERE user_id = ?').get(user_id);
+      if (existingPlayer) {
+        return res.status(400).json({ error: 'This user is already linked to a player' });
+      }
+    }
 
-    const player = db.prepare('SELECT * FROM players WHERE id = ?').get(result.lastInsertRowid);
+    const result = db.prepare(`
+      INSERT INTO players (user_id, summoner_name, role, champion_pool, opgg_username, opgg_region)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(user_id || null, summoner_name, role, champion_pool || '', opgg_username || null, opgg_region || 'na');
+
+    const player = db.prepare(`
+      SELECT p.*, u.username
+      FROM players p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.id = ?
+    `).get(result.lastInsertRowid);
     res.status(201).json(player);
   } catch (error) {
     console.error('Error creating player:', error);
