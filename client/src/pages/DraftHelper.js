@@ -322,7 +322,6 @@ function DraftHelper() {
                   style={{ cursor: used ? 'not-allowed' : 'grab' }}
                 >
                   <img src={champ.image} alt={champ.name} />
-                  <div className="champion-name">{champ.name}</div>
                 </div>
               );
             })}
