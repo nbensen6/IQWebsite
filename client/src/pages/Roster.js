@@ -212,7 +212,9 @@ function Roster() {
   const getOpggUrl = (player) => {
     if (!player.opgg_username) return null;
     const region = player.opgg_region || 'na';
-    return `https://www.op.gg/summoners/${region}/${encodeURIComponent(player.opgg_username)}`;
+    // OP.GG uses Riot ID format: Name#TAG becomes Name-TAG in URL
+    const formattedName = player.opgg_username.replace('#', '-');
+    return `https://www.op.gg/summoners/${region}/${encodeURIComponent(formattedName)}`;
   };
 
   // Generate composition suggestions based on player champion pools
@@ -333,11 +335,12 @@ function Roster() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>OP.GG Username</label>
+                  <label>Riot ID</label>
                   <input
                     type="text"
                     value={newPlayer.opgg_username}
                     onChange={(e) => setNewPlayer({...newPlayer, opgg_username: e.target.value})}
+                    placeholder="Name#TAG"
                   />
                 </div>
                 <div className="form-group">
@@ -425,7 +428,7 @@ function Roster() {
                   <div style={{marginBottom: '0.5rem'}}>
                     <input
                       type="text"
-                      placeholder="Summoner name"
+                      placeholder="Riot ID (Name#TAG)"
                       value={opggForm.username}
                       onChange={(e) => setOpggForm({...opggForm, username: e.target.value})}
                       style={{width: '100%', marginBottom: '0.25rem', padding: '0.25rem'}}
