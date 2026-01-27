@@ -5,7 +5,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Stats from './pages/Stats';
+import Stats from './pages/Practice';
 import DraftHelper from './pages/DraftHelper';
 import Notes from './pages/Notes';
 import Scouting from './pages/Scouting';

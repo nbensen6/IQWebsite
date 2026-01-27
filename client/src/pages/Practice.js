@@ -1,0 +1,730 @@
+import React, { useState, useEffect } from 'react';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+
+function Practice() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [overview, setOverview] = useState(null);
+  const [playerStats, setPlayerStats] = useState([]);
+  const [matches, setMatches] = useState([]);
+  const [settings, setSettings] = useState({ auto_pool_threshold: 3 });
+  const [expandedMatches, setExpandedMatches] = useState(new Set());
+  const [expandedPlayers, setExpandedPlayers] = useState(new Set());
+  const [version, setVersion] = useState('14.1.1');
+  const [scanResult, setScanResult] = useState(null);
+
+  const isAdmin = user?.role === 'admin';
+
+  useEffect(() => {
+    fetchData();
+    fetchVersion();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [overviewRes, statsRes, matchesRes] = await Promise.all([
+        api.get('/practice/overview'),
+        api.get('/practice/stats'),
+        api.get('/practice/matches?limit=50')
+      ]);
+      setOverview(overviewRes.data);
+      setPlayerStats(statsRes.data);
+      setMatches(matchesRes.data.matches);
+
+      if (isAdmin) {
+        const settingsRes = await api.get('/practice/settings');
+        setSettings(settingsRes.data);
+      }
+    } catch (err) {
+      console.error('Failed to load practice data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchVersion = async () => {
+    try {
+      const response = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+      const versions = await response.json();
+      setVersion(versions[0]);
+    } catch (err) {
+      console.error('Failed to fetch version');
+    }
+  };
+
+  const handleScan = async () => {
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const response = await api.post('/practice/scan');
+      setScanResult(response.data);
+      await fetchData();
+    } catch (err) {
+      console.error('Scan failed:', err);
+      alert(err.response?.data?.error || 'Failed to scan for practice matches');
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const handleUpdateThreshold = async (newThreshold) => {
+    try {
+      const response = await api.put('/practice/settings', {
+        auto_pool_threshold: newThreshold
+      });
+      setSettings(response.data);
+    } catch (err) {
+      console.error('Failed to update settings');
+    }
+  };
+
+  const getChampionImage = (champId) => {
+    if (!champId) return null;
+    return `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${champId}.png`;
+  };
+
+  const formatDate = (timestamp) => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const toggleMatch = (matchId) => {
+    const newExpanded = new Set(expandedMatches);
+    if (newExpanded.has(matchId)) {
+      newExpanded.delete(matchId);
+    } else {
+      newExpanded.add(matchId);
+    }
+    setExpandedMatches(newExpanded);
+  };
+
+  const togglePlayer = (playerId) => {
+    const newExpanded = new Set(expandedPlayers);
+    if (newExpanded.has(playerId)) {
+      newExpanded.delete(playerId);
+    } else {
+      newExpanded.add(playerId);
+    }
+    setExpandedPlayers(newExpanded);
+  };
+
+  if (loading) return <div className="loading">Loading practice data...</div>;
+
+  return (
+    <div className="practice-page">
+      <h1 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Team Stats</h1>
+
+      {/* Admin Controls */}
+      {isAdmin && (
+        <div className="card mb-3">
+          <div className="card-header">
+            <h3 className="card-title">Scan Controls</h3>
+          </div>
+          <div className="practice-controls">
+            <button
+              className="btn btn-primary"
+              onClick={handleScan}
+              disabled={scanning}
+            >
+              {scanning ? 'Scanning...' : 'Scan for Practice Games'}
+            </button>
+            <div className="threshold-control">
+              <label>Auto-add to pool after:</label>
+              <select
+                value={settings.auto_pool_threshold}
+                onChange={(e) => handleUpdateThreshold(parseInt(e.target.value))}
+              >
+                {[1, 2, 3, 4, 5, 10].map(n => (
+                  <option key={n} value={n}>{n} games</option>
+                ))}
+              </select>
+            </div>
+            {overview?.lastScan && (
+              <span className="last-scan">
+                Last scan: {formatDate(overview.lastScan)}
+              </span>
+            )}
+          </div>
+          {scanResult && (
+            <div className="scan-result">
+              Scanned {scanResult.matchesScanned} matches, found {scanResult.practiceMatchesFound} practice games.
+              {scanResult.poolsUpdated > 0 && ` Updated ${scanResult.poolsUpdated} champion pools.`}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Team Overview */}
+      {overview && overview.totalMatches > 0 && (
+        <div className="card mb-3">
+          <div className="card-header">
+            <h3 className="card-title">Team Overview</h3>
+            <span className="match-count">{overview.totalMatches} practice games</span>
+          </div>
+          <div className="overview-grid">
+            <div className="overview-section">
+              <h4>Most Played</h4>
+              <div className="champion-list">
+                {overview.mostPlayed.slice(0, 5).map((champ, idx) => (
+                  <div key={idx} className="champion-item">
+                    <img
+                      src={getChampionImage(champ.champion)}
+                      alt={champ.champion}
+                      className="champion-icon"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <span className="champion-name">{champ.champion}</span>
+                    <span className="champion-games">{champ.total_games} games</span>
+                    <span className={`champion-winrate ${champ.winRate >= 50 ? 'positive' : 'negative'}`}>
+                      {champ.winRate}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="overview-section">
+              <h4>Best Performing</h4>
+              <div className="champion-list">
+                {overview.bestPerforming.map((champ, idx) => (
+                  <div key={idx} className="champion-item">
+                    <img
+                      src={getChampionImage(champ.champion)}
+                      alt={champ.champion}
+                      className="champion-icon"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <span className="champion-name">{champ.champion}</span>
+                    <span className="champion-games">{champ.total_games} games</span>
+                    <span className="champion-winrate positive">{champ.winRate}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Player Stats */}
+      <div className="card mb-3">
+        <div className="card-header">
+          <h3 className="card-title">Player Practice Stats</h3>
+        </div>
+        {playerStats.length === 0 || playerStats.every(p => p.totalGames === 0) ? (
+          <p style={{ color: 'var(--text-secondary)' }}>
+            No practice stats yet. {isAdmin ? 'Use the scan button above to find practice matches.' : 'Ask an admin to scan for practice matches.'}
+          </p>
+        ) : (
+          <div className="player-stats-list">
+            {playerStats.filter(p => p.totalGames > 0).map(player => (
+              <div key={player.player.id} className="player-stats-item">
+                <div
+                  className="player-stats-header"
+                  onClick={() => togglePlayer(player.player.id)}
+                >
+                  <div className="player-info">
+                    <span className="player-name">{player.player.name}</span>
+                    <span className="player-role">{player.player.role}</span>
+                  </div>
+                  <div className="player-summary">
+                    <span className="total-games">{player.totalGames} games</span>
+                    <span className={`total-winrate ${player.winRate >= 50 ? 'positive' : 'negative'}`}>
+                      {player.winRate}% WR
+                    </span>
+                    <span className="expand-icon">
+                      {expandedPlayers.has(player.player.id) ? '−' : '+'}
+                    </span>
+                  </div>
+                </div>
+                {expandedPlayers.has(player.player.id) && (
+                  <div className="player-champions">
+                    {player.champions.map((champ, idx) => (
+                      <div key={idx} className="champion-stat-row">
+                        <div className="champion-info">
+                          <img
+                            src={getChampionImage(champ.champion)}
+                            alt={champ.champion}
+                            className="champion-icon"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                          <span className="champion-name">{champ.champion}</span>
+                          {champ.inPool && <span className="in-pool-badge">In Pool</span>}
+                        </div>
+                        <div className="champion-stats">
+                          <span className="stat">{champ.games} games</span>
+                          <span className={`stat winrate ${champ.winRate >= 50 ? 'positive' : 'negative'}`}>
+                            {champ.winRate}% WR
+                          </span>
+                          <span className="stat">{champ.kda} KDA</span>
+                          <span className="stat-detail">
+                            {champ.avgKills}/{champ.avgDeaths}/{champ.avgAssists}
+                          </span>
+                          <span className="stat-detail">{champ.avgCs} CS</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Match History */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Practice Matches</h3>
+        </div>
+        {matches.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)' }}>
+            No practice matches found yet.
+          </p>
+        ) : (
+          <div className="matches-list">
+            {matches.map(match => (
+              <div key={match.id} className="match-item">
+                <div
+                  className="match-header"
+                  onClick={() => toggleMatch(match.id)}
+                >
+                  <div className="match-info">
+                    <span className="match-date">{formatDate(match.game_creation)}</span>
+                    <span className="match-mode">{match.game_mode}</span>
+                    <span className="match-duration">{formatDuration(match.game_duration)}</span>
+                  </div>
+                  <div className="match-roster">
+                    {match.rosterParticipants.map((p, idx) => (
+                      <div key={idx} className={`roster-participant ${p.win ? 'win' : 'loss'}`}>
+                        <img
+                          src={getChampionImage(p.champion)}
+                          alt={p.champion}
+                          className="champion-icon-small"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                        <span className="participant-name">{p.playerName}</span>
+                        <span className="participant-kda">{p.kills}/{p.deaths}/{p.assists}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <span className="expand-icon">
+                    {expandedMatches.has(match.id) ? '−' : '+'}
+                  </span>
+                </div>
+                {expandedMatches.has(match.id) && (
+                  <div className="match-details">
+                    <div className="teams-container">
+                      {[100, 200].map(teamId => (
+                        <div key={teamId} className={`team team-${teamId}`}>
+                          <h5 className={match.winning_team === teamId ? 'winning' : 'losing'}>
+                            {match.winning_team === teamId ? 'Victory' : 'Defeat'}
+                          </h5>
+                          {match.participants
+                            .filter(p => p.teamId === teamId)
+                            .map((p, idx) => {
+                              const isRoster = match.rosterParticipants.some(rp => rp.puuid === p.puuid);
+                              return (
+                                <div key={idx} className={`participant ${isRoster ? 'roster' : ''}`}>
+                                  <img
+                                    src={getChampionImage(p.champion)}
+                                    alt={p.champion}
+                                    className="champion-icon-small"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                  <span className="name">{p.summonerName}</span>
+                                  <span className="kda">{p.kills}/{p.deaths}/{p.assists}</span>
+                                  <span className="cs">{p.cs} CS</span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        .practice-page {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 1rem;
+        }
+
+        .practice-controls {
+          display: flex;
+          align-items: center;
+          gap: 1.5rem;
+          flex-wrap: wrap;
+        }
+
+        .threshold-control {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .threshold-control label {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        }
+
+        .threshold-control select {
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
+          color: var(--text-primary);
+        }
+
+        .last-scan {
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+        }
+
+        .scan-result {
+          margin-top: 1rem;
+          padding: 0.75rem;
+          background: var(--bg-secondary);
+          border-radius: 4px;
+          color: var(--accent-green);
+        }
+
+        .match-count {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        }
+
+        .overview-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 1.5rem;
+        }
+
+        .overview-section h4 {
+          margin-bottom: 0.75rem;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+          text-transform: uppercase;
+        }
+
+        .champion-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .champion-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.5rem;
+          background: var(--bg-secondary);
+          border-radius: 4px;
+        }
+
+        .champion-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 4px;
+        }
+
+        .champion-icon-small {
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+        }
+
+        .champion-name {
+          flex: 1;
+        }
+
+        .champion-games {
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+        }
+
+        .champion-winrate {
+          font-weight: 600;
+          min-width: 40px;
+          text-align: right;
+        }
+
+        .positive { color: var(--accent-green, #4ade80); }
+        .negative { color: var(--accent-red, #f87171); }
+
+        .player-stats-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .player-stats-item {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+
+        .player-stats-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem;
+          cursor: pointer;
+          background: var(--bg-secondary);
+        }
+
+        .player-stats-header:hover {
+          background: var(--bg-hover, var(--bg-secondary));
+        }
+
+        .player-info {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .player-name {
+          font-weight: 600;
+          font-size: 1.1rem;
+        }
+
+        .player-role {
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        }
+
+        .player-summary {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .total-games {
+          color: var(--text-secondary);
+        }
+
+        .total-winrate {
+          font-weight: 600;
+        }
+
+        .expand-icon {
+          font-size: 1.5rem;
+          color: var(--text-secondary);
+          width: 24px;
+          text-align: center;
+        }
+
+        .player-champions {
+          padding: 0.5rem 1rem 1rem;
+        }
+
+        .champion-stat-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.5rem;
+          border-bottom: 1px solid var(--border);
+        }
+
+        .champion-stat-row:last-child {
+          border-bottom: none;
+        }
+
+        .champion-info {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .in-pool-badge {
+          font-size: 0.7rem;
+          padding: 0.15rem 0.4rem;
+          background: var(--accent-green, #4ade80);
+          color: black;
+          border-radius: 4px;
+          font-weight: 600;
+        }
+
+        .champion-stats {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .stat {
+          min-width: 70px;
+          text-align: right;
+        }
+
+        .stat.winrate {
+          font-weight: 600;
+        }
+
+        .stat-detail {
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+          min-width: 60px;
+          text-align: right;
+        }
+
+        .matches-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .match-item {
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+
+        .match-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 1rem;
+          cursor: pointer;
+          background: var(--bg-secondary);
+        }
+
+        .match-header:hover {
+          background: var(--bg-hover, var(--bg-secondary));
+        }
+
+        .match-info {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .match-date {
+          font-weight: 500;
+        }
+
+        .match-mode, .match-duration {
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+        }
+
+        .match-roster {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .roster-participant {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.9rem;
+        }
+
+        .roster-participant.win {
+          background: rgba(74, 222, 128, 0.15);
+        }
+
+        .roster-participant.loss {
+          background: rgba(248, 113, 113, 0.15);
+        }
+
+        .participant-name {
+          font-weight: 500;
+        }
+
+        .participant-kda {
+          color: var(--text-secondary);
+        }
+
+        .match-details {
+          padding: 1rem;
+          border-top: 1px solid var(--border);
+        }
+
+        .teams-container {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+        }
+
+        .team h5 {
+          margin-bottom: 0.75rem;
+          font-size: 0.9rem;
+        }
+
+        .team h5.winning {
+          color: var(--accent-green, #4ade80);
+        }
+
+        .team h5.losing {
+          color: var(--accent-red, #f87171);
+        }
+
+        .participant {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.35rem 0;
+          font-size: 0.85rem;
+        }
+
+        .participant.roster {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 4px;
+          padding: 0.35rem 0.5rem;
+          font-weight: 500;
+        }
+
+        .participant .name {
+          flex: 1;
+        }
+
+        .participant .kda {
+          min-width: 60px;
+          text-align: right;
+        }
+
+        .participant .cs {
+          color: var(--text-secondary);
+          min-width: 50px;
+          text-align: right;
+        }
+
+        @media (max-width: 768px) {
+          .champion-stats {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+          }
+
+          .teams-container {
+            grid-template-columns: 1fr;
+          }
+
+          .match-roster {
+            display: none;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export default Practice;

@@ -12,6 +12,7 @@ const announcementsRoutes = require('./routes/announcements');
 const scoutingRoutes = require('./routes/scouting');
 const compositionsRoutes = require('./routes/compositions');
 const riotRoutes = require('./routes/riot');
+const practiceRoutes = require('./routes/practice');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +30,7 @@ app.use('/api/announcements', announcementsRoutes);
 app.use('/api/scouting', scoutingRoutes);
 app.use('/api/compositions', compositionsRoutes);
 app.use('/api/riot', riotRoutes);
+app.use('/api/practice', practiceRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

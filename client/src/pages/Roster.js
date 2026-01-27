@@ -156,7 +156,6 @@ function Roster() {
       setPlayers(players.map(p =>
         p.id === playerId ? { ...p, role: newRole } : p
       ));
-      setEditingRole(null);
     } catch (err) {
       console.error('Failed to update role');
     }
@@ -187,6 +186,24 @@ function Roster() {
       losses: player.rank_losses,
       winRate
     };
+  };
+
+  const parseRecentMatches = (player) => {
+    if (!player.recent_matches) return [];
+    try {
+      return JSON.parse(player.recent_matches);
+    } catch {
+      return [];
+    }
+  };
+
+  const parseChampionStats = (player) => {
+    if (!player.champion_stats) return [];
+    try {
+      return JSON.parse(player.champion_stats);
+    } catch {
+      return [];
+    }
   };
 
   const handleAddPlayer = async (e) => {
@@ -439,6 +456,8 @@ function Roster() {
           {players.map(player => {
             const rank = getRankDisplay(player);
             const canEdit = user && (user.role === 'admin' || user.id === player.user_id);
+            const recentMatches = parseRecentMatches(player);
+            const championStats = parseChampionStats(player);
 
             return (
               <div key={player.id} className="card player-card">
@@ -463,142 +482,208 @@ function Roster() {
                   )}
                 </div>
 
-                {/* Avatar */}
-                <div className="player-avatar">
-                  {player.profile_icon_id ? (
-                    <img
-                      src={getProfileIconUrl(player.profile_icon_id)}
-                      alt="Profile Icon"
-                    />
-                  ) : (
-                    ROLE_ICONS[player.role] || '🎮'
-                  )}
-                </div>
-
-                {/* Player Info */}
-                <div className="player-info">
-                  <div className="player-header">
-                    <h3 className="player-name">{player.summoner_name}</h3>
-                    {player.summoner_level && (
-                      <span className="player-level">Lv. {player.summoner_level}</span>
-                    )}
-                  </div>
-
-                  {/* Role Dropdown */}
-                  <div>
-                    <select
-                      className="player-role-select"
-                      value={player.role}
-                      onChange={(e) => handleUpdateRole(player.id, e.target.value)}
-                      disabled={!isAdmin}
-                    >
-                      {ROLES.map(r => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Rank Display */}
-                  {rank && (
-                    <div className="player-rank">
-                      <span className={`rank-tier ${rank.tier.toLowerCase()}`}>
-                        {rank.tier} {rank.division}
-                      </span>
-                      <span className="rank-lp">{rank.lp} LP</span>
-                      <span className="rank-record">
-                        <span className="wins">{rank.wins}W</span>
-                        {' '}
-                        <span className="losses">{rank.losses}L</span>
-                        {' '}({rank.winRate}%)
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Username */}
-                  {player.username && (
-                    <span className="player-username">@{player.username}</span>
-                  )}
-
-                  {/* Links */}
-                  <div className="player-links">
-                    {player.opgg_username ? (
-                      <>
-                        <a
-                          href={getOpggUrl(player)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="opgg-link"
-                        >
-                          OP.GG ↗
-                        </a>
-                        {canEdit && (
-                          <button
-                            className="opgg-link"
-                            style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}
-                            onClick={() => {
-                              setEditingPlayer(player.id);
-                              setOpggForm({
-                                username: player.opgg_username || '',
-                                region: player.opgg_region || 'na',
-                                iconId: player.profile_icon_id || ''
-                              });
-                            }}
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </>
-                    ) : canEdit && (
-                      <button
-                        className="opgg-link"
-                        style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}
-                        onClick={() => {
-                          setEditingPlayer(player.id);
-                          setOpggForm({ username: '', region: 'na', iconId: '' });
-                        }}
-                      >
-                        + Link Riot ID
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Edit Form */}
-                  {editingPlayer === player.id && (
-                    <div className="player-edit-form">
-                      <input
-                        type="text"
-                        placeholder="Riot ID (Name#TAG)"
-                        value={opggForm.username}
-                        onChange={(e) => setOpggForm({...opggForm, username: e.target.value})}
+                {/* Top Section: Avatar + Basic Info */}
+                <div className="player-card-header">
+                  {/* Avatar */}
+                  <div className="player-avatar">
+                    {player.profile_icon_id ? (
+                      <img
+                        src={getProfileIconUrl(player.profile_icon_id)}
+                        alt="Profile Icon"
                       />
+                    ) : (
+                      ROLE_ICONS[player.role] || '🎮'
+                    )}
+                  </div>
+
+                  {/* Player Info */}
+                  <div className="player-info">
+                    <div className="player-header">
+                      <h3 className="player-name">{player.summoner_name}</h3>
+                      {player.summoner_level && (
+                        <span className="player-level">Lv. {player.summoner_level}</span>
+                      )}
+                    </div>
+
+                    {/* Role Dropdown */}
+                    <div>
                       <select
-                        value={opggForm.region}
-                        onChange={(e) => setOpggForm({...opggForm, region: e.target.value})}
+                        className="player-role-select"
+                        value={player.role}
+                        onChange={(e) => handleUpdateRole(player.id, e.target.value)}
+                        disabled={!isAdmin}
                       >
-                        {REGIONS.map(r => (
-                          <option key={r.value} value={r.value}>{r.label}</option>
+                        {ROLES.map(r => (
+                          <option key={r} value={r}>{r}</option>
                         ))}
                       </select>
-                      <div className="form-actions">
-                        <button
-                          className="btn btn-primary btn-small"
-                          onClick={() => handleUpdateOpgg(player.id)}
-                        >
-                          Save
-                        </button>
-                        <button
-                          className="btn btn-secondary btn-small"
-                          onClick={() => setEditingPlayer(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
                     </div>
-                  )}
 
-                  {/* Champion Pool */}
-                  {player.champion_pool && (
-                    <div className="champion-pool">
+                    {/* Rank Display */}
+                    {rank && (
+                      <div className="player-rank">
+                        <span className={`rank-tier ${rank.tier.toLowerCase()}`}>
+                          {rank.tier} {rank.division}
+                        </span>
+                        <span className="rank-lp">{rank.lp} LP</span>
+                        <span className="rank-record">
+                          <span className="wins">{rank.wins}W</span>
+                          {' '}
+                          <span className="losses">{rank.losses}L</span>
+                          {' '}({rank.winRate}%)
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Links */}
+                    <div className="player-links">
+                      {player.opgg_username ? (
+                        <>
+                          <a
+                            href={getOpggUrl(player)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="opgg-link"
+                          >
+                            OP.GG ↗
+                          </a>
+                          {canEdit && (
+                            <button
+                              className="opgg-link"
+                              style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}
+                              onClick={() => {
+                                setEditingPlayer(player.id);
+                                setOpggForm({
+                                  username: player.opgg_username || '',
+                                  region: player.opgg_region || 'na',
+                                  iconId: player.profile_icon_id || ''
+                                });
+                              }}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </>
+                      ) : canEdit && (
+                        <button
+                          className="opgg-link"
+                          style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}}
+                          onClick={() => {
+                            setEditingPlayer(player.id);
+                            setOpggForm({ username: '', region: 'na', iconId: '' });
+                          }}
+                        >
+                          + Link Riot ID
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Edit Form */}
+                    {editingPlayer === player.id && (
+                      <div className="player-edit-form">
+                        <input
+                          type="text"
+                          placeholder="Riot ID (Name#TAG)"
+                          value={opggForm.username}
+                          onChange={(e) => setOpggForm({...opggForm, username: e.target.value})}
+                        />
+                        <select
+                          value={opggForm.region}
+                          onChange={(e) => setOpggForm({...opggForm, region: e.target.value})}
+                        >
+                          {REGIONS.map(r => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                        <div className="form-actions">
+                          <button
+                            className="btn btn-primary btn-small"
+                            onClick={() => handleUpdateOpgg(player.id)}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-small"
+                            onClick={() => setEditingPlayer(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Most Played Champions */}
+                {championStats.length > 0 && (
+                  <div className="player-champion-stats">
+                    <h4>Most Played</h4>
+                    <div className="champion-stats-list">
+                      {championStats.slice(0, 3).map((champ, idx) => (
+                        <div key={idx} className="champion-stat-item">
+                          <img
+                            src={getChampionImage(champ.champion)}
+                            alt={champ.champion}
+                            className="champion-stat-icon"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                          <div className="champion-stat-info">
+                            <span className="champion-stat-name">{champ.champion}</span>
+                            <span className="champion-stat-kda">{champ.kda} KDA</span>
+                          </div>
+                          <div className="champion-stat-winrate">
+                            <span className={`winrate ${champ.winRate >= 50 ? 'positive' : 'negative'}`}>
+                              {champ.winRate}%
+                            </span>
+                            <span className="games">{champ.games} games</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Matches */}
+                {recentMatches.length > 0 && (
+                  <div className="player-recent-matches">
+                    <h4>Recent Matches</h4>
+                    <div className="recent-matches-list">
+                      {recentMatches.map((match, idx) => (
+                        <div key={idx} className={`recent-match-item ${match.win ? 'win' : 'loss'}`}>
+                          <img
+                            src={getChampionImage(match.champion)}
+                            alt={match.champion}
+                            className="match-champion-icon"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                          <div className="match-result">
+                            <span className={`result-text ${match.win ? 'win' : 'loss'}`}>
+                              {match.win ? 'Victory' : 'Defeat'}
+                            </span>
+                            <span className="match-duration">{match.gameDuration}m</span>
+                          </div>
+                          <div className="match-kda">
+                            <span className="kda-numbers">
+                              {match.kills}/{match.deaths}/{match.assists}
+                            </span>
+                            <span className="kda-ratio">
+                              {match.deaths === 0 ? 'Perfect' : ((match.kills + match.assists) / match.deaths).toFixed(2)} KDA
+                            </span>
+                          </div>
+                          <div className="match-cs">
+                            <span>{match.cs} CS</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Champion Pool (fallback if no Riot data) */}
+                {player.champion_pool && !championStats.length && (
+                  <div className="player-champion-pool-section">
+                    <h4>Champion Pool</h4>
+                    <div className="champion-pool-icons">
                       {player.champion_pool.split(',').map((champ, idx) => (
                         <img
                           key={idx}
@@ -609,8 +694,8 @@ function Roster() {
                         />
                       ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -256,6 +256,86 @@ router.post('/:id/sync-riot', authenticateToken, async (req, res) => {
       console.log('Could not fetch ranked data');
     }
 
+    // Fetch match history (20 recent ranked/normal games)
+    let recentMatches = [];
+    let championStats = {};
+
+    try {
+      // Get match IDs (ranked solo/duo = 420, normal draft = 400)
+      const matchIds = await riotFetch(
+        `https://${routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/${accountData.puuid}/ids?count=20`
+      );
+
+      // Fetch details for each match (limit to prevent rate limiting)
+      const matchDetails = [];
+      for (const matchId of matchIds.slice(0, 10)) {
+        try {
+          const match = await riotFetch(
+            `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`
+          );
+          matchDetails.push(match);
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (e) {
+          console.log(`Failed to fetch match ${matchId}`);
+        }
+      }
+
+      // Process matches
+      for (const match of matchDetails) {
+        const participant = match.info.participants.find(
+          p => p.puuid === accountData.puuid
+        );
+
+        if (!participant) continue;
+
+        const matchData = {
+          matchId: match.metadata.matchId,
+          champion: participant.championName,
+          kills: participant.kills,
+          deaths: participant.deaths,
+          assists: participant.assists,
+          cs: participant.totalMinionsKilled + participant.neutralMinionsKilled,
+          win: participant.win,
+          gameMode: match.info.gameMode,
+          gameDuration: Math.floor(match.info.gameDuration / 60),
+          timestamp: match.info.gameCreation
+        };
+
+        recentMatches.push(matchData);
+
+        // Aggregate champion stats
+        const champName = participant.championName;
+        if (!championStats[champName]) {
+          championStats[champName] = {
+            champion: champName,
+            games: 0,
+            wins: 0,
+            kills: 0,
+            deaths: 0,
+            assists: 0
+          };
+        }
+        championStats[champName].games++;
+        if (participant.win) championStats[champName].wins++;
+        championStats[champName].kills += participant.kills;
+        championStats[champName].deaths += participant.deaths;
+        championStats[champName].assists += participant.assists;
+      }
+    } catch (e) {
+      console.log('Could not fetch match history:', e.message);
+    }
+
+    // Convert champion stats to sorted array (by games played)
+    const champStatsArray = Object.values(championStats)
+      .map(c => ({
+        ...c,
+        winRate: Math.round((c.wins / c.games) * 100),
+        kda: c.deaths === 0 ? 'Perfect' : ((c.kills + c.assists) / c.deaths).toFixed(2)
+      }))
+      .sort((a, b) => b.games - a.games)
+      .slice(0, 5); // Top 5 most played
+
     // Update player in database
     db.prepare(`
       UPDATE players SET
@@ -267,6 +347,8 @@ router.post('/:id/sync-riot', authenticateToken, async (req, res) => {
         rank_wins = ?,
         rank_losses = ?,
         riot_puuid = ?,
+        recent_matches = ?,
+        champion_stats = ?,
         riot_data_updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `).run(
@@ -278,6 +360,8 @@ router.post('/:id/sync-riot', authenticateToken, async (req, res) => {
       soloQueue?.wins || null,
       soloQueue?.losses || null,
       accountData.puuid,
+      JSON.stringify(recentMatches.slice(0, 3)), // Store only 3 most recent
+      JSON.stringify(champStatsArray),
       id
     );
 
@@ -323,6 +407,176 @@ router.get('/:id/opgg-data', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching op.gg data:', error);
     res.status(500).json({ error: 'Failed to fetch op.gg data' });
+  }
+});
+
+// Auto-refresh all players (called by cron job)
+router.post('/refresh-all', async (req, res) => {
+  try {
+    const cronSecret = req.headers['x-cron-secret'];
+    if (cronSecret !== process.env.CRON_SECRET && cronSecret !== 'internal-refresh') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const RIOT_API_KEY = process.env.RIOT_API_KEY;
+    if (!RIOT_API_KEY) {
+      return res.status(500).json({ error: 'Riot API key not configured' });
+    }
+
+    const players = db.prepare('SELECT * FROM players WHERE opgg_username IS NOT NULL').all();
+
+    const regionMap = {
+      'na': 'na1', 'euw': 'euw1', 'eune': 'eun1', 'kr': 'kr',
+      'br': 'br1', 'lan': 'la1', 'las': 'la2', 'oce': 'oc1',
+      'tr': 'tr1', 'ru': 'ru', 'jp': 'jp1'
+    };
+    const routingMap = {
+      'na': 'americas', 'br': 'americas', 'lan': 'americas', 'las': 'americas',
+      'euw': 'europe', 'eune': 'europe', 'tr': 'europe', 'ru': 'europe',
+      'kr': 'asia', 'jp': 'asia', 'oce': 'sea'
+    };
+
+    const riotFetch = async (url) => {
+      const response = await fetch(url, {
+        headers: { 'X-Riot-Token': RIOT_API_KEY }
+      });
+      if (!response.ok) {
+        const error = new Error(`Riot API: ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return response.json();
+    };
+
+    let updated = 0;
+    let failed = 0;
+
+    for (const player of players) {
+      try {
+        const riotId = player.opgg_username.replace('#', '-').split('-');
+        if (riotId.length < 2) continue;
+
+        const gameName = riotId.slice(0, -1).join('-');
+        const tagLine = riotId[riotId.length - 1];
+        const region = player.opgg_region || 'na';
+        const apiRegion = regionMap[region] || 'na1';
+        const routing = routingMap[region] || 'americas';
+
+        // Get PUUID
+        const accountData = await riotFetch(
+          `https://${routing}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`
+        );
+
+        // Get summoner data
+        const summonerData = await riotFetch(
+          `https://${apiRegion}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${accountData.puuid}`
+        );
+
+        // Get ranked data
+        let soloQueue = null;
+        try {
+          const rankedData = await riotFetch(
+            `https://${apiRegion}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summonerData.id}`
+          );
+          soloQueue = rankedData.find(q => q.queueType === 'RANKED_SOLO_5x5');
+        } catch (e) {}
+
+        // Fetch recent matches
+        let recentMatches = [];
+        let championStats = {};
+
+        try {
+          const matchIds = await riotFetch(
+            `https://${routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/${accountData.puuid}/ids?count=20`
+          );
+
+          for (const matchId of matchIds.slice(0, 10)) {
+            try {
+              const match = await riotFetch(
+                `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`
+              );
+              const participant = match.info.participants.find(p => p.puuid === accountData.puuid);
+              if (!participant) continue;
+
+              recentMatches.push({
+                matchId: match.metadata.matchId,
+                champion: participant.championName,
+                kills: participant.kills,
+                deaths: participant.deaths,
+                assists: participant.assists,
+                cs: participant.totalMinionsKilled + participant.neutralMinionsKilled,
+                win: participant.win,
+                gameMode: match.info.gameMode,
+                gameDuration: Math.floor(match.info.gameDuration / 60),
+                timestamp: match.info.gameCreation
+              });
+
+              const champName = participant.championName;
+              if (!championStats[champName]) {
+                championStats[champName] = { champion: champName, games: 0, wins: 0, kills: 0, deaths: 0, assists: 0 };
+              }
+              championStats[champName].games++;
+              if (participant.win) championStats[champName].wins++;
+              championStats[champName].kills += participant.kills;
+              championStats[champName].deaths += participant.deaths;
+              championStats[champName].assists += participant.assists;
+
+              await new Promise(resolve => setTimeout(resolve, 100));
+            } catch (e) {}
+          }
+        } catch (e) {}
+
+        const champStatsArray = Object.values(championStats)
+          .map(c => ({
+            ...c,
+            winRate: Math.round((c.wins / c.games) * 100),
+            kda: c.deaths === 0 ? 'Perfect' : ((c.kills + c.assists) / c.deaths).toFixed(2)
+          }))
+          .sort((a, b) => b.games - a.games)
+          .slice(0, 5);
+
+        db.prepare(`
+          UPDATE players SET
+            profile_icon_id = ?,
+            summoner_level = ?,
+            rank_tier = ?,
+            rank_division = ?,
+            rank_lp = ?,
+            rank_wins = ?,
+            rank_losses = ?,
+            riot_puuid = ?,
+            recent_matches = ?,
+            champion_stats = ?,
+            riot_data_updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(
+          summonerData.profileIconId,
+          summonerData.summonerLevel,
+          soloQueue?.tier || null,
+          soloQueue?.rank || null,
+          soloQueue?.leaguePoints || null,
+          soloQueue?.wins || null,
+          soloQueue?.losses || null,
+          accountData.puuid,
+          JSON.stringify(recentMatches.slice(0, 3)),
+          JSON.stringify(champStatsArray),
+          player.id
+        );
+
+        updated++;
+        await new Promise(resolve => setTimeout(resolve, 500)); // Rate limit between players
+      } catch (e) {
+        console.error(`Failed to refresh player ${player.summoner_name}:`, e.message);
+        failed++;
+      }
+    }
+
+    console.log(`Auto-refresh complete: ${updated} updated, ${failed} failed`);
+    res.json({ success: true, updated, failed });
+
+  } catch (error) {
+    console.error('Auto-refresh error:', error);
+    res.status(500).json({ error: 'Failed to refresh players' });
   }
 });
 

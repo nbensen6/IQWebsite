@@ -9,10 +9,12 @@ const router = express.Router();
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, password } = req.body;
+    // Auto-generate placeholder email since it's not used
+    const email = `${username.toLowerCase().replace(/[^a-z0-9]/g, '')}@iq.local`;
 
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
     if (password.length < 6) {

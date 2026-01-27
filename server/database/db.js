@@ -189,6 +189,60 @@ try {
   db.exec(`ALTER TABLE players ADD COLUMN riot_data_updated_at DATETIME`);
 } catch (e) {}
 
+// Add columns for match history and champion stats (stored as JSON)
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN recent_matches TEXT`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN champion_stats TEXT`);
+} catch (e) {}
+
+// Practice matches tables
+db.exec(`
+  -- Practice matches (games where 2+ roster members played together)
+  CREATE TABLE IF NOT EXISTS practice_matches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    match_id TEXT UNIQUE NOT NULL,
+    game_creation INTEGER NOT NULL,
+    game_duration INTEGER NOT NULL,
+    game_mode TEXT,
+    winning_team INTEGER,
+    roster_player_count INTEGER NOT NULL,
+    participants TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Practice player stats (aggregated per-player, per-champion)
+  CREATE TABLE IF NOT EXISTS practice_player_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    player_id INTEGER NOT NULL,
+    champion TEXT NOT NULL,
+    games INTEGER DEFAULT 0,
+    wins INTEGER DEFAULT 0,
+    kills INTEGER DEFAULT 0,
+    deaths INTEGER DEFAULT 0,
+    assists INTEGER DEFAULT 0,
+    cs INTEGER DEFAULT 0,
+    total_damage INTEGER DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+    UNIQUE(player_id, champion)
+  );
+
+  -- Practice settings
+  CREATE TABLE IF NOT EXISTS practice_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    auto_pool_threshold INTEGER DEFAULT 3,
+    last_scan_at DATETIME,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// Initialize practice settings if not exists
+try {
+  db.prepare('INSERT OR IGNORE INTO practice_settings (id) VALUES (1)').run();
+} catch (e) {}
+
 console.log('Database initialized successfully');
 
 module.exports = db;

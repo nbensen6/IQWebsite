@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 
 function Register() {
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -29,7 +28,7 @@ function Register() {
     setLoading(true);
 
     try {
-      await register(username, email, password);
+      await register(username, password);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed. Please try again.');
@@ -55,18 +54,6 @@ function Register() {
               onChange={(e) => setUsername(e.target.value)}
               required
               autoComplete="username"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
             />
           </div>
 
