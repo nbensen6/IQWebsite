@@ -231,52 +231,69 @@ function Practice() {
             No practice stats yet. {isAdmin ? 'Use the scan button above to find practice matches.' : 'Ask an admin to scan for practice matches.'}
           </p>
         ) : (
-          <div className="player-stats-list">
+          <div className="player-cards-grid">
             {playerStats.filter(p => p.totalGames > 0).map(player => (
-              <div key={player.player.id} className="player-stats-item">
-                <div
-                  className="player-stats-header"
-                  onClick={() => togglePlayer(player.player.id)}
-                >
-                  <div className="player-info">
-                    <span className="player-name">{player.player.name}</span>
-                    <span className="player-role">{player.player.role}</span>
+              <div key={player.player.id} className="player-stat-card">
+                <div className="player-card-top">
+                  <div className="player-avatar">
+                    {player.player.profileIconId ? (
+                      <img
+                        src={getProfileIconUrl(player.player.profileIconId)}
+                        alt=""
+                        className="profile-icon"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="profile-placeholder" />
+                    )}
                   </div>
-                  <div className="player-summary">
-                    <span className="total-games">{player.totalGames} games</span>
-                    <span className={`total-winrate ${player.winRate >= 50 ? 'positive' : 'negative'}`}>
-                      {player.winRate}% WR
-                    </span>
-                    <span className="expand-icon">
-                      {expandedPlayers.has(player.player.id) ? '−' : '+'}
-                    </span>
+                  <div className="player-card-header">
+                    <span className="player-card-name">{player.player.name}</span>
+                    <span className="player-card-role">{player.player.role}</span>
+                    <div className="player-card-stats">
+                      <span className="games">{player.totalGames} games</span>
+                      <span className={`winrate ${player.winRate >= 50 ? 'positive' : 'negative'}`}>
+                        {player.winRate}% WR
+                      </span>
+                    </div>
                   </div>
                 </div>
+                <div className="player-champs-row">
+                  {player.champions.slice(0, 5).map((champ, idx) => (
+                    <div key={idx} className="champ-mini" title={`${champ.champion}: ${champ.games}G ${champ.winRate}% WR`}>
+                      <img
+                        src={getChampionImage(champ.champion)}
+                        alt={champ.champion}
+                        className="champ-mini-icon"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                      <span className="champ-mini-games">{champ.games}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  className="player-card-expand"
+                  onClick={() => togglePlayer(player.player.id)}
+                >
+                  {expandedPlayers.has(player.player.id) ? 'Hide Details' : 'View All Champions'}
+                </button>
                 {expandedPlayers.has(player.player.id) && (
-                  <div className="player-champions">
+                  <div className="player-champs-detail">
                     {player.champions.map((champ, idx) => (
-                      <div key={idx} className="champion-stat-row">
-                        <div className="champion-info">
-                          <img
-                            src={getChampionImage(champ.champion)}
-                            alt={champ.champion}
-                            className="champion-icon"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                          <span className="champion-name">{champ.champion}</span>
-                          {champ.inPool && <span className="in-pool-badge">In Pool</span>}
-                        </div>
-                        <div className="champion-stats">
-                          <span className="stat">{champ.games} games</span>
-                          <span className={`stat winrate ${champ.winRate >= 50 ? 'positive' : 'negative'}`}>
-                            {champ.winRate}% WR
-                          </span>
-                          <span className="stat">{champ.kda} KDA</span>
-                          <span className="stat-detail">
-                            {champ.avgKills}/{champ.avgDeaths}/{champ.avgAssists}
-                          </span>
-                          <span className="stat-detail">{champ.avgCs} CS</span>
-                        </div>
+                      <div key={idx} className="champ-detail-row">
+                        <img
+                          src={getChampionImage(champ.champion)}
+                          alt={champ.champion}
+                          className="champ-detail-icon"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                        <span className="champ-detail-name">{champ.champion}</span>
+                        {champ.inPool && <span className="in-pool-badge">Pool</span>}
+                        <span className="champ-detail-games">{champ.games}G</span>
+                        <span className={`champ-detail-wr ${champ.winRate >= 50 ? 'positive' : 'negative'}`}>
+                          {champ.winRate}%
+                        </span>
+                        <span className="champ-detail-kda">{champ.kda} KDA</span>
                       </div>
                     ))}
                   </div>
@@ -297,89 +314,69 @@ function Practice() {
             No practice matches found yet.
           </p>
         ) : (
-          <div className="match-cards-grid">
-            {matches.map(match => {
-              const didWin = match.rosterParticipants.length > 0 && match.rosterParticipants[0].win;
-              return (
-                <div key={match.id} className={`match-card ${didWin ? 'win' : 'loss'}`}>
-                  <div className="match-card-header">
-                    <span className={`match-result ${didWin ? 'win' : 'loss'}`}>
-                      {didWin ? 'Victory' : 'Defeat'}
-                    </span>
-                    <span className="match-card-duration">{formatDuration(match.game_duration)}</span>
+          <div className="matches-list">
+            {matches.map(match => (
+              <div key={match.id} className="match-item">
+                <div
+                  className="match-header"
+                  onClick={() => toggleMatch(match.id)}
+                >
+                  <div className="match-info">
+                    <span className="match-date">{formatDate(match.game_creation)}</span>
+                    <span className="match-mode">{match.game_mode}</span>
+                    <span className="match-duration">{formatDuration(match.game_duration)}</span>
                   </div>
-                  <div className="match-card-date">{formatDate(match.game_creation)}</div>
-                  <div className="match-card-players">
+                  <div className="match-roster">
                     {match.rosterParticipants.map((p, idx) => (
-                      <div key={idx} className="match-player-card">
-                        <div className="player-avatar-wrapper">
-                          {p.profileIconId ? (
-                            <img
-                              src={getProfileIconUrl(p.profileIconId)}
-                              alt=""
-                              className="player-profile-icon"
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                          ) : (
-                            <div className="player-profile-placeholder" />
-                          )}
-                          <img
-                            src={getChampionImage(p.champion)}
-                            alt={p.champion}
-                            className="player-champion-overlay"
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        </div>
-                        <div className="player-card-info">
-                          <span className="player-card-name">{p.playerName}</span>
-                          <span className="player-card-role">{p.role}</span>
-                          <span className="player-card-kda">
-                            {p.kills}/{p.deaths}/{p.assists}
-                          </span>
-                          <span className="player-card-cs">{p.cs} CS</span>
-                        </div>
+                      <div key={idx} className={`roster-participant ${p.win ? 'win' : 'loss'}`}>
+                        <img
+                          src={getChampionImage(p.champion)}
+                          alt={p.champion}
+                          className="champion-icon-small"
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                        <span className="participant-name">{p.playerName}</span>
+                        <span className="participant-kda">{p.kills}/{p.deaths}/{p.assists}</span>
                       </div>
                     ))}
                   </div>
-                  <button
-                    className="match-card-expand"
-                    onClick={() => toggleMatch(match.id)}
-                  >
-                    {expandedMatches.has(match.id) ? 'Hide Details' : 'Show All Players'}
-                  </button>
-                  {expandedMatches.has(match.id) && (
-                    <div className="match-card-details">
-                      <div className="match-teams">
-                        {[100, 200].map(teamId => (
-                          <div key={teamId} className="match-team">
-                            <div className={`team-header ${match.winning_team === teamId ? 'win' : 'loss'}`}>
-                              {match.winning_team === teamId ? 'Victory' : 'Defeat'}
-                            </div>
-                            {match.participants
-                              .filter(p => p.teamId === teamId)
-                              .map((p, idx) => {
-                                const isRoster = match.rosterParticipants.some(rp => rp.puuid === p.puuid);
-                                return (
-                                  <div key={idx} className={`team-player ${isRoster ? 'roster' : ''}`}>
-                                    <img
-                                      src={getChampionImage(p.champion)}
-                                      alt={p.champion}
-                                      className="team-player-champ"
-                                      onError={(e) => { e.target.style.display = 'none'; }}
-                                    />
-                                    <span className="team-player-name">{p.summonerName}</span>
-                                    <span className="team-player-kda">{p.kills}/{p.deaths}/{p.assists}</span>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <span className="expand-icon">
+                    {expandedMatches.has(match.id) ? '−' : '+'}
+                  </span>
                 </div>
-              );
-            })}
+                {expandedMatches.has(match.id) && (
+                  <div className="match-details">
+                    <div className="teams-container">
+                      {[100, 200].map(teamId => (
+                        <div key={teamId} className={`team team-${teamId}`}>
+                          <h5 className={match.winning_team === teamId ? 'winning' : 'losing'}>
+                            {match.winning_team === teamId ? 'Victory' : 'Defeat'}
+                          </h5>
+                          {match.participants
+                            .filter(p => p.teamId === teamId)
+                            .map((p, idx) => {
+                              const isRoster = match.rosterParticipants.some(rp => rp.puuid === p.puuid);
+                              return (
+                                <div key={idx} className={`participant ${isRoster ? 'roster' : ''}`}>
+                                  <img
+                                    src={getChampionImage(p.champion)}
+                                    alt={p.champion}
+                                    className="champion-icon-small"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                  <span className="name">{p.summonerName}</span>
+                                  <span className="kda">{p.kills}/{p.deaths}/{p.assists}</span>
+                                  <span className="cs">{p.cs} CS</span>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -493,59 +490,174 @@ function Practice() {
         .positive { color: var(--accent-green, #4ade80); }
         .negative { color: var(--accent-red, #f87171); }
 
-        .player-stats-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        .player-stats-item {
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          overflow: hidden;
-        }
-
-        .player-stats-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 1rem;
-          cursor: pointer;
-          background: var(--bg-secondary);
-        }
-
-        .player-stats-header:hover {
-          background: var(--bg-hover, var(--bg-secondary));
-        }
-
-        .player-info {
-          display: flex;
-          align-items: center;
+        .player-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
           gap: 1rem;
         }
 
-        .player-name {
-          font-weight: 600;
-          font-size: 1.1rem;
+        .player-stat-card {
+          background: var(--bg-secondary);
+          border-radius: 12px;
+          padding: 1rem;
+          border: 1px solid var(--border-color);
         }
 
-        .player-role {
+        .player-card-top {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .player-avatar {
+          flex-shrink: 0;
+        }
+
+        .profile-icon {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          border: 3px solid var(--border-color);
+        }
+
+        .profile-placeholder {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: var(--bg-tertiary);
+          border: 3px solid var(--border-color);
+        }
+
+        .player-card-header {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+
+        .player-card-name {
+          font-weight: 700;
+          font-size: 1.2rem;
+        }
+
+        .player-card-role {
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+        }
+
+        .player-card-stats {
+          display: flex;
+          gap: 0.75rem;
+          margin-top: 0.25rem;
+        }
+
+        .player-card-stats .games {
           color: var(--text-secondary);
           font-size: 0.9rem;
         }
 
-        .player-summary {
+        .player-card-stats .winrate {
+          font-weight: 600;
+          font-size: 0.9rem;
+        }
+
+        .player-champs-row {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 0.75rem;
+        }
+
+        .champ-mini {
+          position: relative;
+          width: 40px;
+          height: 40px;
+        }
+
+        .champ-mini-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+          border: 2px solid var(--border-color);
+        }
+
+        .champ-mini-games {
+          position: absolute;
+          bottom: -4px;
+          right: -4px;
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          font-size: 0.7rem;
+          font-weight: 600;
+          padding: 0 4px;
+          border-radius: 4px;
+          border: 1px solid var(--border-color);
+        }
+
+        .player-card-expand {
+          width: 100%;
+          padding: 0.5rem;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          color: var(--text-secondary);
+          cursor: pointer;
+          font-size: 0.85rem;
+        }
+
+        .player-card-expand:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .player-champs-detail {
+          margin-top: 0.75rem;
+          padding-top: 0.75rem;
+          border-top: 1px solid var(--border-color);
+        }
+
+        .champ-detail-row {
           display: flex;
           align-items: center;
-          gap: 1rem;
+          gap: 0.5rem;
+          padding: 0.4rem 0;
+          font-size: 0.85rem;
         }
 
-        .total-games {
-          color: var(--text-secondary);
+        .champ-detail-icon {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
         }
 
-        .total-winrate {
+        .champ-detail-name {
+          flex: 1;
+          font-weight: 500;
+        }
+
+        .in-pool-badge {
+          font-size: 0.65rem;
+          padding: 0.1rem 0.3rem;
+          background: var(--accent-green, #4ade80);
+          color: black;
+          border-radius: 3px;
           font-weight: 600;
+        }
+
+        .champ-detail-games {
+          color: var(--text-secondary);
+          min-width: 30px;
+          text-align: right;
+        }
+
+        .champ-detail-wr {
+          font-weight: 600;
+          min-width: 35px;
+          text-align: right;
+        }
+
+        .champ-detail-kda {
+          color: var(--text-secondary);
+          min-width: 60px;
+          text-align: right;
         }
 
         .expand-icon {
@@ -555,277 +667,142 @@ function Practice() {
           text-align: center;
         }
 
-        .player-champions {
-          padding: 0.5rem 1rem 1rem;
-        }
-
-        .champion-stat-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.5rem;
-          border-bottom: 1px solid var(--border);
-        }
-
-        .champion-stat-row:last-child {
-          border-bottom: none;
-        }
-
-        .champion-info {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .in-pool-badge {
-          font-size: 0.7rem;
-          padding: 0.15rem 0.4rem;
-          background: var(--accent-green, #4ade80);
-          color: black;
-          border-radius: 4px;
-          font-weight: 600;
-        }
-
-        .champion-stats {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .stat {
-          min-width: 70px;
-          text-align: right;
-        }
-
-        .stat.winrate {
-          font-weight: 600;
-        }
-
-        .stat-detail {
-          color: var(--text-secondary);
-          font-size: 0.85rem;
-          min-width: 60px;
-          text-align: right;
-        }
-
-        .match-cards-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 1rem;
-        }
-
-        .match-card {
-          background: var(--bg-secondary);
-          border-radius: 12px;
-          padding: 1rem;
-          border: 2px solid transparent;
-        }
-
-        .match-card.win {
-          border-color: rgba(74, 222, 128, 0.3);
-        }
-
-        .match-card.loss {
-          border-color: rgba(248, 113, 113, 0.3);
-        }
-
-        .match-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 0.25rem;
-        }
-
-        .match-result {
-          font-weight: 700;
-          font-size: 1.1rem;
-        }
-
-        .match-result.win {
-          color: var(--accent-green, #4ade80);
-        }
-
-        .match-result.loss {
-          color: var(--accent-red, #f87171);
-        }
-
-        .match-card-duration {
-          color: var(--text-secondary);
-          font-size: 0.85rem;
-        }
-
-        .match-card-date {
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-          margin-bottom: 1rem;
-        }
-
-        .match-card-players {
+        .matches-list {
           display: flex;
           flex-direction: column;
-          gap: 0.75rem;
+          gap: 0.5rem;
         }
 
-        .match-player-card {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.5rem;
-          background: var(--bg-tertiary, #2a2a2a);
+        .match-item {
+          border: 1px solid var(--border);
           border-radius: 8px;
+          overflow: hidden;
         }
 
-        .player-avatar-wrapper {
-          position: relative;
-          width: 48px;
-          height: 48px;
-        }
-
-        .player-profile-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          border: 2px solid var(--border-color);
-        }
-
-        .player-profile-placeholder {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background: var(--bg-primary);
-          border: 2px solid var(--border-color);
-        }
-
-        .player-champion-overlay {
-          position: absolute;
-          bottom: -4px;
-          right: -4px;
-          width: 24px;
-          height: 24px;
-          border-radius: 4px;
-          border: 2px solid var(--bg-secondary);
-        }
-
-        .player-card-info {
+        .match-header {
           display: flex;
-          flex-direction: column;
-          flex: 1;
-        }
-
-        .player-card-name {
-          font-weight: 600;
-          font-size: 0.95rem;
-        }
-
-        .player-card-role {
-          color: var(--text-secondary);
-          font-size: 0.75rem;
-        }
-
-        .player-card-kda {
-          font-size: 0.9rem;
-          margin-top: 0.25rem;
-        }
-
-        .player-card-cs {
-          color: var(--text-secondary);
-          font-size: 0.8rem;
-        }
-
-        .match-card-expand {
-          width: 100%;
-          margin-top: 1rem;
-          padding: 0.5rem;
-          background: var(--bg-tertiary, #2a2a2a);
-          border: 1px solid var(--border-color);
-          border-radius: 6px;
-          color: var(--text-secondary);
+          justify-content: space-between;
+          align-items: center;
+          padding: 0.75rem 1rem;
           cursor: pointer;
+          background: var(--bg-secondary);
+        }
+
+        .match-header:hover {
+          background: var(--bg-hover, var(--bg-secondary));
+        }
+
+        .match-info {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .match-date {
+          font-weight: 500;
+        }
+
+        .match-mode, .match-duration {
+          color: var(--text-secondary);
           font-size: 0.85rem;
         }
 
-        .match-card-expand:hover {
-          background: var(--bg-hover);
-          color: var(--text-primary);
+        .match-roster {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
         }
 
-        .match-card-details {
-          margin-top: 1rem;
-          padding-top: 1rem;
-          border-top: 1px solid var(--border-color);
+        .roster-participant {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.9rem;
         }
 
-        .match-teams {
+        .roster-participant.win {
+          background: rgba(74, 222, 128, 0.15);
+        }
+
+        .roster-participant.loss {
+          background: rgba(248, 113, 113, 0.15);
+        }
+
+        .participant-name {
+          font-weight: 500;
+        }
+
+        .participant-kda {
+          color: var(--text-secondary);
+        }
+
+        .match-details {
+          padding: 1rem;
+          border-top: 1px solid var(--border);
+        }
+
+        .teams-container {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 1rem;
         }
 
-        .match-team {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
+        .team h5 {
+          margin-bottom: 0.75rem;
+          font-size: 0.9rem;
         }
 
-        .team-header {
-          font-weight: 600;
-          font-size: 0.85rem;
-          margin-bottom: 0.5rem;
-        }
-
-        .team-header.win {
+        .team h5.winning {
           color: var(--accent-green, #4ade80);
         }
 
-        .team-header.loss {
+        .team h5.losing {
           color: var(--accent-red, #f87171);
         }
 
-        .team-player {
+        .participant {
           display: flex;
           align-items: center;
           gap: 0.5rem;
-          font-size: 0.8rem;
-          padding: 0.2rem 0;
+          padding: 0.35rem 0;
+          font-size: 0.85rem;
         }
 
-        .team-player.roster {
+        .participant.roster {
           background: rgba(255, 255, 255, 0.05);
           border-radius: 4px;
-          padding: 0.2rem 0.4rem;
-          margin: 0 -0.4rem;
+          padding: 0.35rem 0.5rem;
+          font-weight: 500;
         }
 
-        .team-player-champ {
-          width: 20px;
-          height: 20px;
-          border-radius: 4px;
-        }
-
-        .team-player-name {
+        .participant .name {
           flex: 1;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
 
-        .team-player-kda {
+        .participant .kda {
+          min-width: 60px;
+          text-align: right;
+        }
+
+        .participant .cs {
           color: var(--text-secondary);
-          font-size: 0.75rem;
+          min-width: 50px;
+          text-align: right;
         }
 
         @media (max-width: 768px) {
-          .champion-stats {
-            flex-wrap: wrap;
-            gap: 0.5rem;
-          }
-
-          .match-cards-grid {
+          .player-cards-grid {
             grid-template-columns: 1fr;
           }
 
-          .match-teams {
+          .teams-container {
             grid-template-columns: 1fr;
+          }
+
+          .match-roster {
+            display: none;
           }
         }
       `}</style>

@@ -292,7 +292,7 @@ router.get('/matches', authenticateToken, (req, res) => {
 router.get('/stats', authenticateToken, (req, res) => {
   try {
     const players = db.prepare(`
-      SELECT id, summoner_name, role, champion_pool FROM players
+      SELECT id, summoner_name, role, champion_pool, profile_icon_id FROM players
       ORDER BY
         CASE role
           WHEN 'Top' THEN 1
@@ -333,7 +333,8 @@ router.get('/stats', authenticateToken, (req, res) => {
         player: {
           id: player.id,
           name: player.summoner_name,
-          role: player.role
+          role: player.role,
+          profileIconId: player.profile_icon_id
         },
         totalGames,
         totalWins,
