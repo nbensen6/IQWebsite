@@ -522,7 +522,9 @@ tr:hover {
 
 /* Draft board */
 .draft-board {
-  /* Board is at top, no sticky positioning needed */
+  position: sticky;
+  top: 70px;
+  z-index: 100;
 }
 
 .draft-team {
