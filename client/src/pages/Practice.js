@@ -204,20 +204,20 @@ function Practice() {
             </div>
             <div className="overview-section">
               <h4>Best Stats</h4>
-              <div className="best-stats-list">
+              <div className="champion-list">
                 {overview.bestStats && Object.values(overview.bestStats).filter(Boolean).map((stat, idx) => (
-                  <div key={idx} className="best-stat-item">
-                    <div className="stat-label">{stat.label}</div>
-                    <div className="stat-details">
-                      <img
-                        src={getChampionImage(stat.champion)}
-                        alt={stat.champion}
-                        className="champion-icon-small"
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                      <span className="stat-player">{stat.player}</span>
-                      <span className="stat-value">{stat.value}</span>
+                  <div key={idx} className="champion-item">
+                    <img
+                      src={getChampionImage(stat.champion)}
+                      alt={stat.champion}
+                      className="champion-icon"
+                      onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                    <div className="champion-info">
+                      <span className="champion-name">{stat.label}</span>
+                      <span className="champion-player">{stat.player} - {stat.champion}</span>
                     </div>
+                    <span className="stat-value-highlight">{stat.value}</span>
                   </div>
                 ))}
               </div>
@@ -507,48 +507,12 @@ function Practice() {
           text-align: right;
         }
 
-        .best-stats-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-
-        .best-stat-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.5rem;
-          background: var(--bg-secondary);
-          border-radius: 4px;
-        }
-
-        .stat-label {
-          font-size: 0.8rem;
-          color: var(--text-secondary);
-          min-width: 120px;
-        }
-
-        .stat-details {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex: 1;
-          justify-content: flex-end;
-        }
-
-        .stat-player {
-          font-size: 0.85rem;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          max-width: 100px;
-        }
-
-        .stat-value {
+        .stat-value-highlight {
           font-weight: 600;
           color: var(--accent-green, #4ade80);
-          min-width: 50px;
+          min-width: 60px;
           text-align: right;
+          font-size: 0.95rem;
         }
 
         .positive { color: var(--accent-green, #4ade80); }
