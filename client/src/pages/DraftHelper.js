@@ -278,60 +278,10 @@ function DraftHelper() {
       <div className="draft-page">
         <h1 style={{marginBottom: '1.5rem'}}>Draft Helper</h1>
 
-      <div className="draft-container">
-        <div className="champion-section">
-          <div className="champion-filters">
-            <div className="role-filter">
-              {ROLES.map(role => (
-                <button
-                  key={role}
-                  className={`role-btn ${roleFilter === role ? 'active' : ''}`}
-                  onClick={() => setRoleFilter(role)}
-                >
-                  {role}
-                </button>
-              ))}
-            </div>
-
-            <input
-              type="text"
-              className="champion-search"
-              placeholder="Search champions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <p style={{marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem'}}>
-            Drag champions to pick/ban slots. Right-click for notes. Click filled slots to remove.
-          </p>
-
-          <div className="champion-grid">
-            {filteredChampions.map(champ => {
-              const used = isChampionUsed(champ.id);
-              const isPicked = bluePicks.includes(champ.id) || redPicks.includes(champ.id);
-              const isBanned = blueBans.includes(champ.id) || redBans.includes(champ.id);
-
-              return (
-                <div
-                  key={champ.id}
-                  className={`champion-card ${isPicked ? 'picked' : ''} ${isBanned ? 'banned' : ''} ${used ? '' : 'draggable'}`}
-                  draggable={!used}
-                  onDragStart={(e) => handleDragStart(e, champ)}
-                  onDragEnd={handleDragEnd}
-                  onContextMenu={(e) => handleRightClick(e, champ)}
-                  title={champ.name}
-                  style={{ cursor: used ? 'not-allowed' : 'grab' }}
-                >
-                  <img src={champ.image} alt={champ.name} />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="draft-board card">
-          <div className="draft-team mb-3">
+      {/* Draft Board at Top */}
+      <div className="draft-board card mb-3">
+        <div className="draft-teams-row">
+          <div className="draft-team">
             <h3>Blue Team (Ally)</h3>
             <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>Picks</p>
             <div className="draft-slots">
@@ -398,20 +348,72 @@ function DraftHelper() {
               ))}
             </div>
           </div>
+        </div>
 
-          <div className="draft-actions">
-            <button className="btn btn-secondary btn-small" onClick={resetDraft}>
-              Reset Draft
+        <div className="draft-actions">
+          <button className="btn btn-secondary btn-small" onClick={resetDraft}>
+            Reset Draft
+          </button>
+          {hasDraftContent() && (
+            <button
+              className="btn btn-primary btn-small"
+              onClick={() => setShowSaveModal(true)}
+            >
+              Save to Team
             </button>
-            {hasDraftContent() && (
+          )}
+        </div>
+      </div>
+
+      {/* Champion Selection Below */}
+      <div className="champion-section card">
+        <div className="champion-filters">
+          <div className="role-filter">
+            {ROLES.map(role => (
               <button
-                className="btn btn-primary btn-small"
-                onClick={() => setShowSaveModal(true)}
+                key={role}
+                className={`role-btn ${roleFilter === role ? 'active' : ''}`}
+                onClick={() => setRoleFilter(role)}
               >
-                Save to Team
+                {role}
               </button>
-            )}
+            ))}
           </div>
+
+          <input
+            type="text"
+            className="champion-search"
+            placeholder="Search champions..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <p style={{marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem'}}>
+          Drag champions to pick/ban slots. Right-click for notes. Click filled slots to remove.
+        </p>
+
+        <div className="champion-grid">
+          {filteredChampions.map(champ => {
+            const used = isChampionUsed(champ.id);
+            const isPicked = bluePicks.includes(champ.id) || redPicks.includes(champ.id);
+            const isBanned = blueBans.includes(champ.id) || redBans.includes(champ.id);
+
+            return (
+              <div
+                key={champ.id}
+                className={`champion-card ${isPicked ? 'picked' : ''} ${isBanned ? 'banned' : ''} ${used ? '' : 'draggable'}`}
+                draggable={!used}
+                onDragStart={(e) => handleDragStart(e, champ)}
+                onDragEnd={handleDragEnd}
+                onContextMenu={(e) => handleRightClick(e, champ)}
+                title={champ.name}
+                style={{ cursor: used ? 'not-allowed' : 'grab' }}
+              >
+                <img src={champ.image} alt={champ.name} />
+              </div>
+            );
+          })}
         </div>
       </div>
 
