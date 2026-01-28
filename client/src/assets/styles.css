@@ -522,9 +522,21 @@ tr:hover {
 
 /* Draft board */
 .draft-board {
-  position: sticky;
+  position: fixed;
   top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 4rem);
+  max-width: 1336px;
   z-index: 100;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.draft-board + .champion-section {
+  margin-top: 280px;
 }
 
 .draft-team {
