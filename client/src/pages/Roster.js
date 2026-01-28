@@ -173,6 +173,25 @@ function Roster() {
     }
   };
 
+  const [refreshingAll, setRefreshingAll] = useState(false);
+
+  const handleRefreshAll = async () => {
+    setRefreshingAll(true);
+    try {
+      const playersWithRiot = players.filter(p => p.opgg_username);
+      for (const player of playersWithRiot) {
+        try {
+          const response = await api.post(`/players/${player.id}/sync-riot`);
+          setPlayers(prev => prev.map(p => p.id === player.id ? response.data : p));
+        } catch (err) {
+          console.error(`Failed to sync ${player.summoner_name}`);
+        }
+      }
+    } finally {
+      setRefreshingAll(false);
+    }
+  };
+
   const getRankDisplay = (player) => {
     if (!player.rank_tier) return null;
     const winRate = player.rank_wins && player.rank_losses
@@ -343,12 +362,21 @@ function Roster() {
         <div className="card mb-3">
           <div className="card-header">
             <h3 className="card-title">Admin Panel</h3>
-            <button
-              className="btn btn-primary btn-small"
-              onClick={() => setShowAddPlayer(!showAddPlayer)}
-            >
-              {showAddPlayer ? 'Cancel' : '+ Add Player'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className="btn btn-secondary btn-small"
+                onClick={handleRefreshAll}
+                disabled={refreshingAll}
+              >
+                {refreshingAll ? 'Refreshing...' : 'Refresh All'}
+              </button>
+              <button
+                className="btn btn-primary btn-small"
+                onClick={() => setShowAddPlayer(!showAddPlayer)}
+              >
+                {showAddPlayer ? 'Cancel' : '+ Add Player'}
+              </button>
+            </div>
           </div>
 
           {showAddPlayer && (
@@ -498,15 +526,10 @@ function Roster() {
 
                   {/* Player Info */}
                   <div className="player-info">
-                    <div className="player-header">
-                      <h3 className="player-name">{player.summoner_name}</h3>
-                      {player.summoner_level && (
-                        <span className="player-level">Lv. {player.summoner_level}</span>
-                      )}
-                    </div>
+                    <h3 className="player-name">{player.summoner_name}</h3>
 
-                    {/* Role Dropdown */}
-                    <div>
+                    {/* Role + Level */}
+                    <div className="player-role-row">
                       <select
                         className="player-role-select"
                         value={player.role}
@@ -517,6 +540,9 @@ function Roster() {
                           <option key={r} value={r}>{r}</option>
                         ))}
                       </select>
+                      {player.summoner_level && (
+                        <span className="player-level">Lv. {player.summoner_level}</span>
+                      )}
                     </div>
 
                     {/* Rank Display */}

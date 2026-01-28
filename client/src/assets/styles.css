@@ -58,20 +58,21 @@ body {
 
 .video-background {
   position: fixed;
-  top: 70px;
+  top: 0;
   left: 0;
-  width: 100%;
-  height: calc(100% - 70px);
+  width: 100vw;
+  height: 100vh;
   object-fit: cover;
+  object-position: center;
   z-index: -2;
 }
 
 .video-overlay {
   position: fixed;
-  top: 70px;
+  top: 0;
   left: 0;
-  width: 100%;
-  height: calc(100% - 70px);
+  width: 100vw;
+  height: 100vh;
   background: linear-gradient(
     to bottom,
     rgba(17, 17, 17, 0.7) 0%,
@@ -1008,6 +1009,12 @@ tr:hover {
   background: var(--bg-tertiary);
   padding: 0.15rem 0.4rem;
   border-radius: 3px;
+}
+
+.player-role-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .player-role-select {
