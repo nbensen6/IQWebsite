@@ -501,12 +501,14 @@ function Practice() {
           border-radius: 12px;
           padding: 1rem;
           border: 1px solid var(--border-color);
+          overflow: hidden;
         }
 
         .player-card-top {
           display: flex;
-          gap: 1rem;
+          gap: 0.75rem;
           margin-bottom: 1rem;
+          overflow: hidden;
         }
 
         .player-avatar {
@@ -532,11 +534,16 @@ function Practice() {
           display: flex;
           flex-direction: column;
           justify-content: center;
+          overflow: hidden;
+          min-width: 0;
         }
 
         .player-card-name {
           font-weight: 700;
-          font-size: 1.2rem;
+          font-size: 1.1rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .player-card-role {

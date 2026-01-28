@@ -21,7 +21,7 @@ function Home() {
         <div className="home-features">
           <div className="card feature-card">
             <h3>Stats Tracking</h3>
-            <p>Upload match data via CSV and track your team's performance over time.</p>
+            <p>Auto-sync practice matches from Riot API and track champion performance across the team.</p>
           </div>
 
           <div className="card feature-card">

@@ -70,8 +70,10 @@ router.post('/scan', async (req, res, next) => {
     for (const player of players) {
       const routing = getRouting(player.opgg_region || 'na');
       try {
+        // Only fetch matches starting from Jan 20, 2025 (team start date)
+        const teamStartDate = Math.floor(new Date('2025-01-20T00:00:00Z').getTime() / 1000);
         const matchIds = await riotFetch(
-          `https://${routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.riot_puuid}/ids?count=20`
+          `https://${routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.riot_puuid}/ids?count=20&startTime=${teamStartDate}`
         );
         matchIdSets[player.id] = new Set(matchIds);
         // Rate limit delay
