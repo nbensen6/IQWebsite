@@ -151,8 +151,8 @@ router.post('/scan', async (req, res, next) => {
 
             // Upsert champion stats
             db.prepare(`
-              INSERT INTO practice_player_stats (player_id, champion, games, wins, kills, deaths, assists, cs, total_damage, updated_at)
-              VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+              INSERT INTO practice_player_stats (player_id, champion, games, wins, kills, deaths, assists, cs, total_damage, total_damage_taken, updated_at)
+              VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
               ON CONFLICT(player_id, champion) DO UPDATE SET
                 games = games + 1,
                 wins = wins + excluded.wins,
@@ -161,6 +161,7 @@ router.post('/scan', async (req, res, next) => {
                 assists = assists + excluded.assists,
                 cs = cs + excluded.cs,
                 total_damage = total_damage + excluded.total_damage,
+                total_damage_taken = total_damage_taken + excluded.total_damage_taken,
                 updated_at = CURRENT_TIMESTAMP
             `).run(
               player.id,
@@ -170,7 +171,8 @@ router.post('/scan', async (req, res, next) => {
               participant.deaths,
               participant.assists,
               participant.totalMinionsKilled + participant.neutralMinionsKilled,
-              participant.totalDamageDealtToChampions
+              participant.totalDamageDealtToChampions,
+              participant.totalDamageTaken || 0
             );
           }
         }
@@ -436,30 +438,125 @@ router.get('/overview', authenticateToken, (req, res) => {
     // Total practice matches
     const totalMatches = db.prepare('SELECT COUNT(*) as count FROM practice_matches').get().count;
 
-    // Most played champions across team
-    const mostPlayed = db.prepare(`
-      SELECT champion, SUM(games) as total_games, SUM(wins) as total_wins
-      FROM practice_player_stats
-      GROUP BY champion
-      ORDER BY total_games DESC
-      LIMIT 10
-    `).all().map(c => ({
-      ...c,
-      winRate: c.total_games > 0 ? Math.round((c.total_wins / c.total_games) * 100) : 0
-    }));
+    // Get player name mapping
+    const players = db.prepare('SELECT id, summoner_name FROM players').all();
+    const playerMap = {};
+    players.forEach(p => { playerMap[p.id] = p.summoner_name; });
 
-    // Best performing (min 3 games, sorted by winrate)
-    const bestPerforming = db.prepare(`
-      SELECT champion, SUM(games) as total_games, SUM(wins) as total_wins
-      FROM practice_player_stats
-      GROUP BY champion
-      HAVING total_games >= 3
-      ORDER BY (CAST(total_wins AS FLOAT) / total_games) DESC
+    // Most played champions across team (with player names)
+    const mostPlayed = db.prepare(`
+      SELECT pps.champion, pps.player_id, p.summoner_name as player_name,
+             pps.games, pps.wins
+      FROM practice_player_stats pps
+      JOIN players p ON pps.player_id = p.id
+      ORDER BY pps.games DESC
       LIMIT 5
     `).all().map(c => ({
       ...c,
-      winRate: c.total_games > 0 ? Math.round((c.total_wins / c.total_games) * 100) : 0
+      winRate: c.games > 0 ? Math.round((c.wins / c.games) * 100) : 0
     }));
+
+    // Best Stats - 5 categories with player info
+    const minGames = 1;
+
+    // Best KDA
+    const bestKDA = db.prepare(`
+      SELECT pps.champion, pps.player_id, p.summoner_name as player_name,
+             pps.games, pps.kills, pps.deaths, pps.assists,
+             CASE WHEN pps.deaths = 0 THEN 999
+                  ELSE CAST(pps.kills + pps.assists AS FLOAT) / pps.deaths END as kda
+      FROM practice_player_stats pps
+      JOIN players p ON pps.player_id = p.id
+      WHERE pps.games >= ?
+      ORDER BY kda DESC
+      LIMIT 1
+    `).get(minGames);
+
+    // Highest Damage
+    const highestDamage = db.prepare(`
+      SELECT pps.champion, pps.player_id, p.summoner_name as player_name,
+             pps.games, pps.total_damage,
+             CAST(pps.total_damage AS FLOAT) / pps.games as avg_damage
+      FROM practice_player_stats pps
+      JOIN players p ON pps.player_id = p.id
+      WHERE pps.games >= ?
+      ORDER BY avg_damage DESC
+      LIMIT 1
+    `).get(minGames);
+
+    // Most Damage Taken
+    const mostDamageTaken = db.prepare(`
+      SELECT pps.champion, pps.player_id, p.summoner_name as player_name,
+             pps.games, pps.total_damage_taken,
+             CAST(pps.total_damage_taken AS FLOAT) / pps.games as avg_damage_taken
+      FROM practice_player_stats pps
+      JOIN players p ON pps.player_id = p.id
+      WHERE pps.games >= ? AND pps.total_damage_taken > 0
+      ORDER BY avg_damage_taken DESC
+      LIMIT 1
+    `).get(minGames);
+
+    // Best CS
+    const bestCS = db.prepare(`
+      SELECT pps.champion, pps.player_id, p.summoner_name as player_name,
+             pps.games, pps.cs,
+             CAST(pps.cs AS FLOAT) / pps.games as avg_cs
+      FROM practice_player_stats pps
+      JOIN players p ON pps.player_id = p.id
+      WHERE pps.games >= ?
+      ORDER BY avg_cs DESC
+      LIMIT 1
+    `).get(minGames);
+
+    // Most Kills
+    const mostKills = db.prepare(`
+      SELECT pps.champion, pps.player_id, p.summoner_name as player_name,
+             pps.games, pps.kills,
+             CAST(pps.kills AS FLOAT) / pps.games as avg_kills
+      FROM practice_player_stats pps
+      JOIN players p ON pps.player_id = p.id
+      WHERE pps.games >= ?
+      ORDER BY avg_kills DESC
+      LIMIT 1
+    `).get(minGames);
+
+    const bestStats = {
+      kda: bestKDA ? {
+        label: 'Best KDA',
+        player: bestKDA.player_name,
+        champion: bestKDA.champion,
+        value: bestKDA.deaths === 0 ? 'Perfect' : ((bestKDA.kills + bestKDA.assists) / bestKDA.deaths).toFixed(2),
+        games: bestKDA.games
+      } : null,
+      damage: highestDamage ? {
+        label: 'Highest Damage',
+        player: highestDamage.player_name,
+        champion: highestDamage.champion,
+        value: Math.round(highestDamage.avg_damage).toLocaleString(),
+        games: highestDamage.games
+      } : null,
+      damageTaken: mostDamageTaken ? {
+        label: 'Most Damage Taken',
+        player: mostDamageTaken.player_name,
+        champion: mostDamageTaken.champion,
+        value: Math.round(mostDamageTaken.avg_damage_taken).toLocaleString(),
+        games: mostDamageTaken.games
+      } : null,
+      cs: bestCS ? {
+        label: 'Best CS',
+        player: bestCS.player_name,
+        champion: bestCS.champion,
+        value: Math.round(bestCS.avg_cs),
+        games: bestCS.games
+      } : null,
+      kills: mostKills ? {
+        label: 'Most Kills',
+        player: mostKills.player_name,
+        champion: mostKills.champion,
+        value: mostKills.avg_kills.toFixed(1),
+        games: mostKills.games
+      } : null
+    };
 
     // Last scan time
     const settings = db.prepare('SELECT last_scan_at FROM practice_settings WHERE id = 1').get();
@@ -467,7 +564,7 @@ router.get('/overview', authenticateToken, (req, res) => {
     res.json({
       totalMatches,
       mostPlayed,
-      bestPerforming,
+      bestStats,
       lastScan: settings?.last_scan_at
     });
 

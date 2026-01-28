@@ -243,6 +243,11 @@ try {
   db.prepare('INSERT OR IGNORE INTO practice_settings (id) VALUES (1)').run();
 } catch (e) {}
 
+// Add damage taken column to practice_player_stats
+try {
+  db.exec(`ALTER TABLE practice_player_stats ADD COLUMN total_damage_taken INTEGER DEFAULT 0`);
+} catch (e) {}
+
 console.log('Database initialized successfully');
 
 module.exports = db;
