@@ -55,9 +55,7 @@ function Practice() {
   const formatDate = (timestamp) => {
     return new Date(timestamp).toLocaleDateString('en-US', {
       month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric'
     });
   };
 
@@ -79,12 +77,6 @@ function Practice() {
       });
     }
   });
-
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const toggleMatch = (matchId) => {
     const newExpanded = new Set(expandedMatches);
@@ -269,8 +261,22 @@ function Practice() {
                 >
                   <div className="match-info">
                     <span className="match-date">{formatDate(match.game_creation)}</span>
-                    <span className="match-mode">{match.game_mode}</span>
-                    <span className="match-duration">{formatDuration(match.game_duration)}</span>
+                    {(() => {
+                      const firstPlayer = match.rosterParticipants.find(p => p.opggUsername);
+                      if (!firstPlayer) return null;
+                      return (
+                        <a
+                          href={getOpggUrl(firstPlayer.opggUsername, firstPlayer.opggRegion)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="match-game-link"
+                          onClick={(e) => e.stopPropagation()}
+                          title="View on OP.GG"
+                        >
+                          Game ↗
+                        </a>
+                      );
+                    })()}
                   </div>
                   <div className="match-roster">
                     {match.rosterParticipants.map((p, idx) => (
@@ -281,11 +287,7 @@ function Practice() {
                           className="champion-icon-small"
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
-                        {p.opggUsername ? (
-                          <a href={getOpggUrl(p.opggUsername, p.opggRegion)} target="_blank" rel="noopener noreferrer" className="participant-name opgg-link">{p.playerName}</a>
-                        ) : (
-                          <span className="participant-name">{p.playerName}</span>
-                        )}
+                        <span className="participant-name">{p.playerName}</span>
                         <span className="participant-kda">{p.kills}/{p.deaths}/{p.assists}</span>
                       </div>
                     ))}
@@ -666,9 +668,9 @@ function Practice() {
 
         .match-header {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 0.75rem 1rem;
+          gap: 0.75rem;
+          padding: 0.5rem 0.75rem;
           cursor: pointer;
           background: var(--bg-secondary);
         }
@@ -680,31 +682,46 @@ function Practice() {
         .match-info {
           display: flex;
           align-items: center;
-          gap: 1rem;
+          gap: 0.5rem;
+          flex-shrink: 0;
         }
 
         .match-date {
           font-weight: 500;
+          font-size: 0.85rem;
+          white-space: nowrap;
         }
 
-        .match-mode, .match-duration {
-          color: var(--text-secondary);
-          font-size: 0.85rem;
+        .match-game-link {
+          font-size: 0.75rem;
+          color: var(--accent-blue, #38bdf8);
+          text-decoration: none;
+          white-space: nowrap;
+        }
+
+        .match-game-link:hover {
+          text-decoration: underline;
         }
 
         .match-roster {
           display: flex;
-          gap: 1rem;
-          flex-wrap: wrap;
+          gap: 0.5rem;
+          flex-wrap: nowrap;
+          overflow: hidden;
+          flex: 1;
+          min-width: 0;
+          justify-content: flex-end;
         }
 
         .roster-participant {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          padding: 0.25rem 0.5rem;
+          gap: 0.25rem;
+          padding: 0.15rem 0.35rem;
           border-radius: 4px;
-          font-size: 0.9rem;
+          font-size: 0.8rem;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
 
         .roster-participant.win {
@@ -717,10 +734,12 @@ function Practice() {
 
         .participant-name {
           font-weight: 500;
+          font-size: 0.8rem;
         }
 
         .participant-kda {
           color: var(--text-secondary);
+          font-size: 0.75rem;
         }
 
         .match-details {

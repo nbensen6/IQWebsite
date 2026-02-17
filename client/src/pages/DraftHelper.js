@@ -32,6 +32,9 @@ function DraftHelper() {
   const [selectedChampion, setSelectedChampion] = useState(null);
   const [championNotes, setChampionNotes] = useState({});
 
+  // Click-to-assign menu
+  const [assignMenu, setAssignMenu] = useState(null);
+
   // Save draft state
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [enemyTeams, setEnemyTeams] = useState([]);
@@ -226,6 +229,40 @@ function DraftHelper() {
     setSelectedChampion(champ);
   };
 
+  const handleChampionClick = (e, champ) => {
+    if (isChampionUsed(champ.id)) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setAssignMenu({
+      champId: champ.id,
+      champName: champ.name,
+      x: rect.left + rect.width / 2,
+      y: rect.top
+    });
+  };
+
+  const handleAssign = (slotType) => {
+    if (!assignMenu) return;
+    const champId = assignMenu.champId;
+
+    const findAndFill = (arr, setter) => {
+      const idx = arr.indexOf(null);
+      if (idx === -1) return false;
+      const copy = [...arr];
+      copy[idx] = champId;
+      setter(copy);
+      return true;
+    };
+
+    switch (slotType) {
+      case 'bluePick': findAndFill(bluePicks, setBluePicks); break;
+      case 'redPick': findAndFill(redPicks, setRedPicks); break;
+      case 'blueBan': findAndFill(blueBans, setBlueBans); break;
+      case 'redBan': findAndFill(redBans, setRedBans); break;
+      default: break;
+    }
+    setAssignMenu(null);
+  };
+
   const saveChampionNote = async (champId, notes) => {
     try {
       await api.post('/notes/champion', { champion_id: champId, notes });
@@ -390,7 +427,7 @@ function DraftHelper() {
         </div>
 
         <p style={{marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem'}}>
-          Drag champions to pick/ban slots. Right-click for notes. Click filled slots to remove.
+          Click or drag champions to pick/ban slots. Right-click for notes. Click filled slots to remove.
         </p>
 
         <div className="champion-grid">
@@ -406,9 +443,10 @@ function DraftHelper() {
                 draggable={!used}
                 onDragStart={(e) => handleDragStart(e, champ)}
                 onDragEnd={handleDragEnd}
+                onClick={(e) => handleChampionClick(e, champ)}
                 onContextMenu={(e) => handleRightClick(e, champ)}
                 title={champ.name}
-                style={{ cursor: used ? 'not-allowed' : 'grab' }}
+                style={{ cursor: used ? 'not-allowed' : 'pointer' }}
               >
                 <img src={champ.image} alt={champ.name} />
               </div>
@@ -416,6 +454,50 @@ function DraftHelper() {
           })}
         </div>
       </div>
+
+      {/* Click-to-Assign Menu */}
+      {assignMenu && (
+        <>
+          <div className="assign-backdrop" onClick={() => setAssignMenu(null)} />
+          <div
+            className="assign-menu"
+            style={{
+              left: assignMenu.x,
+              top: assignMenu.y
+            }}
+          >
+            <div className="assign-menu-title">{assignMenu.champName}</div>
+            <button
+              className="assign-menu-btn blue-pick"
+              onClick={() => handleAssign('bluePick')}
+              disabled={!bluePicks.includes(null)}
+            >
+              Blue Pick
+            </button>
+            <button
+              className="assign-menu-btn red-pick"
+              onClick={() => handleAssign('redPick')}
+              disabled={!redPicks.includes(null)}
+            >
+              Red Pick
+            </button>
+            <button
+              className="assign-menu-btn blue-ban"
+              onClick={() => handleAssign('blueBan')}
+              disabled={!blueBans.includes(null)}
+            >
+              Blue Ban
+            </button>
+            <button
+              className="assign-menu-btn red-ban"
+              onClick={() => handleAssign('redBan')}
+              disabled={!redBans.includes(null)}
+            >
+              Red Ban
+            </button>
+          </div>
+        </>
+      )}
 
       {/* Save Draft Modal */}
       {showSaveModal && (

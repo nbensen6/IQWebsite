@@ -1,70 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
+import FlowchartCanvas from '../components/FlowchartCanvas';
 
 const NOTE_CATEGORIES = ['General', 'Draft Tendencies', 'Playstyle', 'Weaknesses', 'Player Notes'];
-const NODE_TYPES = ['start', 'action', 'decision', 'note'];
-
-function generateId() {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-function FlowchartNode({ nodeId, nodes, edges, selectedNodeId, onSelectNode }) {
-  const node = nodes.find(n => n.id === nodeId);
-  if (!node) return null;
-  const childEdges = edges.filter(e => e.from === nodeId);
-  const isSelected = selectedNodeId === nodeId;
-
-  return (
-    <div className="fc-branch">
-      <div
-        className={`fc-node fc-${node.type}${isSelected ? ' selected' : ''}`}
-        onClick={(e) => { e.stopPropagation(); onSelectNode && onSelectNode(nodeId); }}
-      >
-        {node.text || <em style={{color: 'var(--text-secondary)'}}>Empty</em>}
-      </div>
-      {childEdges.length > 0 && (
-        <>
-          <div className="fc-connector-down" />
-          {childEdges.length > 1 && <div className="fc-horizontal-line" />}
-          <div className="fc-children">
-            {childEdges.map(edge => (
-              <div key={edge.to} className="fc-child">
-                {edge.label && <div className="fc-edge-label">{edge.label}</div>}
-                <div className="fc-connector-down" />
-                <FlowchartNode
-                  nodeId={edge.to}
-                  nodes={nodes}
-                  edges={edges}
-                  selectedNodeId={selectedNodeId}
-                  onSelectNode={onSelectNode}
-                />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function FlowchartRenderer({ nodes, edges, selectedNodeId, onSelectNode }) {
-  if (!nodes || nodes.length === 0) return null;
-  const childNodeIds = new Set(edges.map(e => e.to));
-  const rootNodes = nodes.filter(n => !childNodeIds.has(n.id));
-  const rootId = rootNodes.length > 0 ? rootNodes[0].id : nodes[0].id;
-
-  return (
-    <div className="fc-renderer" onClick={() => onSelectNode && onSelectNode(null)}>
-      <FlowchartNode
-        nodeId={rootId}
-        nodes={nodes}
-        edges={edges}
-        selectedNodeId={selectedNodeId}
-        onSelectNode={onSelectNode}
-      />
-    </div>
-  );
-}
 
 function Scouting() {
   const [teams, setTeams] = useState([]);
@@ -93,17 +31,15 @@ function Scouting() {
 
   const [modalImage, setModalImage] = useState(null);
 
-  // Flowchart builder state
-  const [showFlowchartModal, setShowFlowchartModal] = useState(false);
+  // Flowchart canvas state
+  const [showFlowchartCanvas, setShowFlowchartCanvas] = useState(false);
   const [editingFlowchart, setEditingFlowchart] = useState(null);
-  const [fcName, setFcName] = useState('');
-  const [fcNodes, setFcNodes] = useState([]);
-  const [fcEdges, setFcEdges] = useState([]);
-  const [fcSelectedNodeId, setFcSelectedNodeId] = useState(null);
+  const [champions, setChampions] = useState([]);
 
   useEffect(() => {
     fetchTeams();
     fetchVersion();
+    fetchChampions();
   }, []);
 
   const fetchTeams = async () => {
@@ -124,6 +60,26 @@ function Scouting() {
       setVersion(versions[0]);
     } catch (err) {
       console.error('Failed to fetch version');
+    }
+  };
+
+  const fetchChampions = async () => {
+    try {
+      const response = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+      const versions = await response.json();
+      const latestVersion = versions[0];
+
+      const champResponse = await fetch(`https://ddragon.leagueoflegends.com/cdn/${latestVersion}/data/en_US/champion.json`);
+      const data = await champResponse.json();
+
+      const champList = Object.values(data.data).map(champ => ({
+        id: champ.id,
+        name: champ.name,
+        image: `https://ddragon.leagueoflegends.com/cdn/${latestVersion}/img/champion/${champ.id}.png`
+      }));
+      setChampions(champList.sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (err) {
+      console.error('Failed to load champions');
     }
   };
 
@@ -309,93 +265,24 @@ function Scouting() {
 
   // Flowchart handlers
   const openNewFlowchart = () => {
-    const startId = generateId();
     setEditingFlowchart(null);
-    setFcName('');
-    setFcNodes([{ id: startId, type: 'start', text: '' }]);
-    setFcEdges([]);
-    setFcSelectedNodeId(startId);
-    setShowFlowchartModal(true);
+    setShowFlowchartCanvas(true);
   };
 
   const openEditFlowchart = (flowchart) => {
     setEditingFlowchart(flowchart);
-    setFcName(flowchart.name);
-    const data = typeof flowchart.data === 'string' ? JSON.parse(flowchart.data) : flowchart.data;
-    setFcNodes(data.nodes || []);
-    setFcEdges(data.edges || []);
-    setFcSelectedNodeId(null);
-    setShowFlowchartModal(true);
+    setShowFlowchartCanvas(true);
   };
 
-  const closeFlowchartModal = () => {
-    setShowFlowchartModal(false);
-    setEditingFlowchart(null);
-    setFcName('');
-    setFcNodes([]);
-    setFcEdges([]);
-    setFcSelectedNodeId(null);
-  };
-
-  const handleAddChildNode = () => {
-    if (!fcSelectedNodeId) return;
-    const newId = generateId();
-    const parentNode = fcNodes.find(n => n.id === fcSelectedNodeId);
-    const defaultType = parentNode?.type === 'decision' ? 'action' : 'action';
-    setFcNodes([...fcNodes, { id: newId, type: defaultType, text: '' }]);
-    setFcEdges([...fcEdges, { from: fcSelectedNodeId, to: newId, label: '' }]);
-    setFcSelectedNodeId(newId);
-  };
-
-  const handleDeleteNode = () => {
-    if (!fcSelectedNodeId) return;
-    if (fcNodes.length <= 1) return;
-
-    // Get all descendant node IDs (recursive)
-    const getDescendants = (nodeId) => {
-      const childEdges = fcEdges.filter(e => e.from === nodeId);
-      let descendants = [];
-      for (const edge of childEdges) {
-        descendants.push(edge.to);
-        descendants = [...descendants, ...getDescendants(edge.to)];
-      }
-      return descendants;
-    };
-
-    const toRemove = new Set([fcSelectedNodeId, ...getDescendants(fcSelectedNodeId)]);
-    setFcNodes(fcNodes.filter(n => !toRemove.has(n.id)));
-    setFcEdges(fcEdges.filter(e => !toRemove.has(e.from) && !toRemove.has(e.to)));
-    setFcSelectedNodeId(null);
-  };
-
-  const handleUpdateNodeField = (field, value) => {
-    if (!fcSelectedNodeId) return;
-    setFcNodes(fcNodes.map(n => n.id === fcSelectedNodeId ? { ...n, [field]: value } : n));
-  };
-
-  const handleUpdateEdgeLabel = (edgeFrom, edgeTo, newLabel) => {
-    setFcEdges(fcEdges.map(e =>
-      (e.from === edgeFrom && e.to === edgeTo) ? { ...e, label: newLabel } : e
-    ));
-  };
-
-  const handleSaveFlowchart = async () => {
-    if (!fcName.trim()) return;
-
-    const payload = {
-      name: fcName,
-      data: { nodes: fcNodes, edges: fcEdges }
-    };
-
+  const handleSaveFlowchart = async (fcId, payload) => {
     try {
-      if (editingFlowchart) {
-        const response = await api.put(`/scouting/flowcharts/${editingFlowchart.id}`, payload);
-        setTeamFlowcharts(teamFlowcharts.map(f => f.id === editingFlowchart.id ? response.data : f));
+      if (fcId) {
+        const response = await api.put(`/scouting/flowcharts/${fcId}`, payload);
+        setTeamFlowcharts(teamFlowcharts.map(f => f.id === fcId ? response.data : f));
       } else {
         const response = await api.post(`/scouting/teams/${selectedTeam.id}/flowcharts`, payload);
         setTeamFlowcharts([response.data, ...teamFlowcharts]);
       }
-      closeFlowchartModal();
     } catch (err) {
       setError('Failed to save flowchart');
     }
@@ -848,8 +735,7 @@ function Scouting() {
                 ) : (
                   teamFlowcharts.map(fc => {
                     const data = typeof fc.data === 'string' ? JSON.parse(fc.data) : fc.data;
-                    const rootNodes = data.nodes ? data.nodes.filter(n => !data.edges?.some(e => e.to === n.id)) : [];
-                    const rootId = rootNodes.length > 0 ? rootNodes[0].id : (data.nodes?.[0]?.id || null);
+                    const nodeCount = data.nodes?.length || 0;
 
                     return (
                       <div key={fc.id} className="card mb-2">
@@ -857,7 +743,7 @@ function Scouting() {
                           <div>
                             <h4 style={{color: 'var(--accent-gold)'}}>{fc.name}</h4>
                             <small style={{color: 'var(--text-secondary)'}}>
-                              {formatDate(fc.created_at)}{fc.author_name ? ` by ${fc.author_name}` : ''}
+                              {formatDate(fc.created_at)}{fc.author_name ? ` by ${fc.author_name}` : ''} — {nodeCount} node{nodeCount !== 1 ? 's' : ''}
                             </small>
                           </div>
                           <div style={{display: 'flex', gap: '0.5rem'}}>
@@ -875,14 +761,6 @@ function Scouting() {
                             </button>
                           </div>
                         </div>
-                        {rootId && data.nodes && (
-                          <div style={{overflowX: 'auto', padding: '1rem 0'}}>
-                            <FlowchartRenderer
-                              nodes={data.nodes}
-                              edges={data.edges || []}
-                            />
-                          </div>
-                        )}
                       </div>
                     );
                   })
@@ -890,179 +768,21 @@ function Scouting() {
               </div>
             )}
 
-            {showFlowchartModal && (
-              <div className="image-modal" onClick={closeFlowchartModal}>
-                <div
-                  className="fc-modal-content card"
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    maxWidth: '900px',
-                    width: '90%',
-                    maxHeight: '90vh',
-                    overflow: 'auto',
-                    padding: '1.5rem',
-                    background: 'var(--bg-primary)',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)'
-                  }}
-                >
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
-                    <h3 style={{color: 'var(--accent-gold)', margin: 0}}>
-                      {editingFlowchart ? 'Edit Flowchart' : 'New Flowchart'}
-                    </h3>
-                    <button
-                      className="btn btn-secondary btn-small"
-                      onClick={closeFlowchartModal}
-                    >
-                      Close
-                    </button>
-                  </div>
-
-                  <div className="form-group" style={{marginBottom: '1rem'}}>
-                    <input
-                      type="text"
-                      value={fcName}
-                      onChange={(e) => setFcName(e.target.value)}
-                      placeholder="Flowchart name..."
-                      style={{
-                        width: '100%',
-                        padding: '0.5rem',
-                        borderRadius: '4px',
-                        border: '1px solid var(--border-color)',
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-primary)'
-                      }}
-                    />
-                  </div>
-
-                  {/* Node editor panel */}
-                  {fcSelectedNodeId && (() => {
-                    const selectedNode = fcNodes.find(n => n.id === fcSelectedNodeId);
-                    if (!selectedNode) return null;
-                    const parentEdge = fcEdges.find(e => e.to === fcSelectedNodeId);
-                    const parentNode = parentEdge ? fcNodes.find(n => n.id === parentEdge.from) : null;
-
-                    return (
-                      <div style={{
-                        padding: '1rem',
-                        marginBottom: '1rem',
-                        background: 'var(--bg-tertiary)',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-color)'
-                      }}>
-                        <h4 style={{marginTop: 0, marginBottom: '0.75rem', color: 'var(--text-primary)'}}>
-                          Edit Node
-                        </h4>
-                        <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end'}}>
-                          <div style={{flex: '0 0 auto'}}>
-                            <label style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem'}}>
-                              Type
-                            </label>
-                            <select
-                              value={selectedNode.type}
-                              onChange={(e) => handleUpdateNodeField('type', e.target.value)}
-                              style={{
-                                padding: '0.5rem',
-                                borderRadius: '4px',
-                                border: '1px solid var(--border-color)',
-                                background: 'var(--bg-secondary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            >
-                              {NODE_TYPES.map(t => (
-                                <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div style={{flex: '1 1 200px'}}>
-                            <label style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem'}}>
-                              Text
-                            </label>
-                            <input
-                              type="text"
-                              value={selectedNode.text}
-                              onChange={(e) => handleUpdateNodeField('text', e.target.value)}
-                              placeholder="Node text..."
-                              style={{
-                                width: '100%',
-                                padding: '0.5rem',
-                                borderRadius: '4px',
-                                border: '1px solid var(--border-color)',
-                                background: 'var(--bg-secondary)',
-                                color: 'var(--text-primary)'
-                              }}
-                            />
-                          </div>
-                          {parentEdge && parentNode?.type === 'decision' && (
-                            <div style={{flex: '0 0 120px'}}>
-                              <label style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem'}}>
-                                Edge Label
-                              </label>
-                              <input
-                                type="text"
-                                value={parentEdge.label}
-                                onChange={(e) => handleUpdateEdgeLabel(parentEdge.from, parentEdge.to, e.target.value)}
-                                placeholder="Yes / No"
-                                style={{
-                                  width: '100%',
-                                  padding: '0.5rem',
-                                  borderRadius: '4px',
-                                  border: '1px solid var(--border-color)',
-                                  background: 'var(--bg-secondary)',
-                                  color: 'var(--text-primary)'
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                        <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.75rem'}}>
-                          <button className="btn btn-primary btn-small" onClick={handleAddChildNode}>
-                            + Add Child
-                          </button>
-                          {fcNodes.length > 1 && (
-                            <button className="btn btn-danger btn-small" onClick={handleDeleteNode}>
-                              Delete Node
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Flowchart preview */}
-                  <div style={{
-                    overflowX: 'auto',
-                    padding: '1.5rem',
-                    background: 'var(--bg-secondary)',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    marginBottom: '1rem',
-                    minHeight: '150px'
-                  }}>
-                    {fcNodes.length > 0 && (
-                      <FlowchartRenderer
-                        nodes={fcNodes}
-                        edges={fcEdges}
-                        selectedNodeId={fcSelectedNodeId}
-                        onSelectNode={setFcSelectedNodeId}
-                      />
-                    )}
-                  </div>
-
-                  <div style={{display: 'flex', gap: '0.5rem', justifyContent: 'flex-end'}}>
-                    <button className="btn btn-secondary" onClick={closeFlowchartModal}>
-                      Cancel
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      onClick={handleSaveFlowchart}
-                      disabled={!fcName.trim()}
-                    >
-                      {editingFlowchart ? 'Update' : 'Save'} Flowchart
-                    </button>
-                  </div>
-                </div>
-              </div>
+            {showFlowchartCanvas && (
+              <FlowchartCanvas
+                teamId={selectedTeam.id}
+                flowcharts={teamFlowcharts}
+                initialFlowchart={editingFlowchart}
+                champions={champions}
+                version={version}
+                onSave={handleSaveFlowchart}
+                onDelete={handleDeleteFlowchart}
+                onClose={() => {
+                  setShowFlowchartCanvas(false);
+                  setEditingFlowchart(null);
+                  fetchTeamData(selectedTeam.id);
+                }}
+              />
             )}
           </>
         ) : (

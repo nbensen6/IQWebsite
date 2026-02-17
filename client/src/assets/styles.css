@@ -2307,3 +2307,420 @@ tr:hover {
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border-color);
 }
+
+/* ============= CLICK-TO-ASSIGN MENU ============= */
+
+.assign-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+}
+
+.assign-menu {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+  z-index: 1000;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.5rem;
+  min-width: 140px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.assign-menu-title {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.assign-menu-btn {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  margin-bottom: 0.2rem;
+  border: none;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.assign-menu-btn:last-child {
+  margin-bottom: 0;
+}
+
+.assign-menu-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.assign-menu-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.assign-menu-btn.blue-pick {
+  border-left-color: var(--accent-blue);
+}
+
+.assign-menu-btn.red-pick {
+  border-left-color: var(--error);
+}
+
+.assign-menu-btn.blue-ban {
+  border-left-color: #1d4ed8;
+}
+
+.assign-menu-btn.red-ban {
+  border-left-color: #991b1b;
+}
+
+/* ============= FLOWCHART CANVAS EDITOR ============= */
+
+.fc-canvas-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  display: flex;
+  background: var(--bg-primary);
+}
+
+.fc-drafts-sidebar {
+  width: 240px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.fc-drafts-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.fc-draft-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.fc-draft-item:hover,
+.fc-draft-item.active {
+  background: var(--accent-gold);
+  color: #000;
+}
+
+.fc-draft-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fc-draft-delete {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+
+.fc-draft-delete:hover {
+  opacity: 1;
+}
+
+.fc-editor-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.fc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fc-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fc-toolbar-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.fc-name-input {
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  min-width: 200px;
+}
+
+.fc-name-input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+}
+
+.fc-palette {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.fc-palette-item {
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: grab;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.fc-palette-item:active {
+  cursor: grabbing;
+}
+
+.fc-palette-item:hover {
+  border-color: var(--accent-gold);
+}
+
+.fc-pal-start {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.fc-pal-action {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.fc-pal-decision {
+  border-color: var(--accent-gold);
+  border-style: double;
+  border-width: 3px;
+}
+
+.fc-pal-note {
+  border-style: dashed;
+  color: var(--text-secondary);
+}
+
+.fc-canvas-area {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  background-color: var(--bg-primary);
+  background-image: radial-gradient(circle, var(--border-color) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.fc-canvas-area:active {
+  cursor: grabbing;
+}
+
+.fc-canvas-inner {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.fc-svg-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.fc-svg-overlay path,
+.fc-svg-overlay g {
+  pointer-events: auto;
+}
+
+.fc-canvas-shape {
+  position: absolute;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  background: var(--bg-tertiary);
+  cursor: move;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  word-wrap: break-word;
+  user-select: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.fc-canvas-shape:hover {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.fc-canvas-shape.selected {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.fc-canvas-shape.fc-start {
+  border-color: var(--accent-gold);
+  border-radius: 24px;
+  background: rgba(245, 158, 11, 0.1);
+  font-weight: 600;
+  color: var(--accent-gold);
+}
+
+.fc-canvas-shape.fc-decision {
+  border-color: var(--accent-gold);
+  border-style: double;
+  border-width: 3px;
+  background: rgba(245, 158, 11, 0.08);
+  font-weight: 500;
+}
+
+.fc-canvas-shape.fc-action {
+  border-color: var(--accent-blue);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.fc-canvas-shape.fc-note {
+  border-style: dashed;
+  border-color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+.fc-shape-text {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-shape-champion {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+/* Port dots on shapes */
+.fc-port {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent-gold);
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 3;
+}
+
+.fc-canvas-shape:hover .fc-port {
+  opacity: 1;
+}
+
+.fc-port-top    { top: -5px;  left: 50%; transform: translateX(-50%); }
+.fc-port-bottom { bottom: -5px; left: 50%; transform: translateX(-50%); }
+.fc-port-left   { left: -5px; top: 50%; transform: translateY(-50%); }
+.fc-port-right  { right: -5px; top: 50%; transform: translateY(-50%); }
+
+.fc-port:hover {
+  background: var(--accent-gold);
+  transform: translateX(-50%) scale(1.3);
+}
+
+.fc-port-left:hover,
+.fc-port-right:hover {
+  transform: translateY(-50%) scale(1.3);
+}
+
+/* Node Editor Panel */
+.fc-node-editor {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 280px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .fc-canvas-overlay {
+    flex-direction: column;
+  }
+
+  .fc-drafts-sidebar {
+    width: 100%;
+    max-height: 120px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .fc-node-editor {
+    width: calc(100% - 2rem);
+    bottom: 0.5rem;
+    right: 0.5rem;
+    left: 0.5rem;
+  }
+}
