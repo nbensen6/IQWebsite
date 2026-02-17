@@ -705,23 +705,71 @@ function Roster() {
                   </div>
                 )}
 
-                {/* Champion Pool (fallback if no Riot data) */}
-                {player.champion_pool && !championStats.length && (
-                  <div className="player-champion-pool-section">
-                    <h4>Champion Pool</h4>
-                    <div className="champion-pool-icons">
-                      {player.champion_pool.split(',').map((champ, idx) => (
-                        <img
-                          key={idx}
-                          src={getChampionImage(champ.trim())}
-                          alt={champ.trim()}
-                          title={champ.trim()}
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* Champion Pool Tiers */}
+                {(() => {
+                  let poolData = null;
+                  try {
+                    poolData = player.champion_pool_data ? JSON.parse(player.champion_pool_data) : null;
+                  } catch (e) {}
+
+                  if (poolData) {
+                    return (
+                      <div className="player-champion-pool-section">
+                        <h4>Champion Pool</h4>
+                        {poolData.ready && poolData.ready.length > 0 && (
+                          <div className="pool-tier">
+                            <span className="pool-tier-label ready">Ready</span>
+                            <div className="champion-pool-icons">
+                              {poolData.ready.map((champ, idx) => (
+                                <img key={idx} src={getChampionImage(champ)} alt={champ} title={champ}
+                                  onError={(e) => { e.target.style.display = 'none'; }} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {poolData.practicing && poolData.practicing.length > 0 && (
+                          <div className="pool-tier">
+                            <span className="pool-tier-label practicing">Practicing</span>
+                            <div className="champion-pool-icons">
+                              {poolData.practicing.map((champ, idx) => (
+                                <img key={idx} src={getChampionImage(champ)} alt={champ} title={champ}
+                                  onError={(e) => { e.target.style.display = 'none'; }} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {poolData.wontPlay && poolData.wontPlay.length > 0 && (
+                          <div className="pool-tier">
+                            <span className="pool-tier-label wont-play">Won't Play</span>
+                            <div className="champion-pool-icons">
+                              {poolData.wontPlay.map((champ, idx) => (
+                                <img key={idx} src={getChampionImage(champ)} alt={champ} title={champ}
+                                  onError={(e) => { e.target.style.display = 'none'; }} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  // Fallback to old champion_pool display
+                  if (player.champion_pool && !championStats.length) {
+                    return (
+                      <div className="player-champion-pool-section">
+                        <h4>Champion Pool</h4>
+                        <div className="champion-pool-icons">
+                          {player.champion_pool.split(',').map((champ, idx) => (
+                            <img key={idx} src={getChampionImage(champ.trim())} alt={champ.trim()}
+                              title={champ.trim()}
+                              onError={(e) => { e.target.style.display = 'none'; }} />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             );
           })}

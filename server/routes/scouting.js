@@ -392,4 +392,103 @@ router.delete('/drafts/:id', authenticateToken, (req, res) => {
   }
 });
 
+// ============= DRAFT FLOWCHARTS =============
+
+// Get all flowcharts for a team
+router.get('/teams/:teamId/flowcharts', authenticateToken, (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const flowcharts = db.prepare(`
+      SELECT df.*, u.username as author_name
+      FROM draft_flowcharts df
+      LEFT JOIN users u ON df.user_id = u.id
+      WHERE df.team_id = ?
+      ORDER BY df.updated_at DESC
+    `).all(teamId);
+
+    res.json(flowcharts);
+  } catch (error) {
+    console.error('Error fetching flowcharts:', error);
+    res.status(500).json({ error: 'Failed to fetch flowcharts' });
+  }
+});
+
+// Create flowchart for a team
+router.post('/teams/:teamId/flowcharts', authenticateToken, (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { name, data } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Flowchart name is required' });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO draft_flowcharts (team_id, user_id, name, data)
+      VALUES (?, ?, ?, ?)
+    `).run(teamId, req.user.id, name, JSON.stringify(data || { nodes: [], edges: [] }));
+
+    db.prepare('UPDATE enemy_teams SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(teamId);
+
+    const flowchart = db.prepare(`
+      SELECT df.*, u.username as author_name
+      FROM draft_flowcharts df
+      LEFT JOIN users u ON df.user_id = u.id
+      WHERE df.id = ?
+    `).get(result.lastInsertRowid);
+
+    res.status(201).json(flowchart);
+  } catch (error) {
+    console.error('Error creating flowchart:', error);
+    res.status(500).json({ error: 'Failed to create flowchart' });
+  }
+});
+
+// Update flowchart
+router.put('/flowcharts/:id', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, data } = req.body;
+
+    const flowchart = db.prepare('SELECT * FROM draft_flowcharts WHERE id = ?').get(id);
+    if (!flowchart) {
+      return res.status(404).json({ error: 'Flowchart not found' });
+    }
+
+    db.prepare(`
+      UPDATE draft_flowcharts
+      SET name = ?, data = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      name || flowchart.name,
+      data ? JSON.stringify(data) : flowchart.data,
+      id
+    );
+
+    const updated = db.prepare(`
+      SELECT df.*, u.username as author_name
+      FROM draft_flowcharts df
+      LEFT JOIN users u ON df.user_id = u.id
+      WHERE df.id = ?
+    `).get(id);
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating flowchart:', error);
+    res.status(500).json({ error: 'Failed to update flowchart' });
+  }
+});
+
+// Delete flowchart
+router.delete('/flowcharts/:id', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM draft_flowcharts WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting flowchart:', error);
+    res.status(500).json({ error: 'Failed to delete flowchart' });
+  }
+});
+
 module.exports = router;

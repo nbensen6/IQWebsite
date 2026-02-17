@@ -580,6 +580,110 @@ router.post('/refresh-all', async (req, res) => {
   }
 });
 
+// Update champion pool tiers for a player
+router.patch('/:id/champion-pool-data', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { champion_pool_data } = req.body;
+
+    const player = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    // Allow if user is admin or if the player is linked to their account
+    if (req.user.role !== 'admin' && player.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    db.prepare('UPDATE players SET champion_pool_data = ? WHERE id = ?')
+      .run(JSON.stringify(champion_pool_data), id);
+
+    // Also update the flat champion_pool for backwards compatibility
+    const allChamps = [
+      ...(champion_pool_data.ready || []),
+      ...(champion_pool_data.practicing || [])
+    ];
+    db.prepare('UPDATE players SET champion_pool = ? WHERE id = ?')
+      .run(allChamps.join(','), id);
+
+    const updated = db.prepare('SELECT * FROM players WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating champion pool:', error);
+    res.status(500).json({ error: 'Failed to update champion pool' });
+  }
+});
+
+// Seed champion pools from predefined data (admin/cron)
+router.post('/seed-champion-pools', async (req, res) => {
+  try {
+    const cronSecret = req.headers['x-cron-secret'];
+    let isAuthed = cronSecret === process.env.CRON_SECRET;
+
+    // Also allow admin users
+    if (!isAuthed && req.headers.authorization) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'iq-team-secret-key-2024');
+        if (decoded.role === 'admin') isAuthed = true;
+      } catch (e) {}
+    }
+
+    if (!isAuthed) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const poolData = {
+      'Top': {
+        ready: ['Akali','Aatrox','Illaoi','Cassiopeia','Ambessa','Chogath','Aurora','DrMundo','Camille','Fiora','Darius','Gangplank','Gnar','Jax','Jayce','KSante','Kled','Poppy','Quinn','Riven','Rumble','Kennen','Malphite','Mordekaiser','Singed','TahmKench','Naafiri','Nasus','Olaf','Ornn','Pantheon','Renekton','Sejuani','Sett','Shen','Swain','Sylas','Teemo','Trundle','Tryndamere','Udyr','Vladimir','Volibear','MonkeyKing','Yasuo','Yone','Zac'],
+        practicing: ['Garen','Gragas','Kayle','Ryze','Sion','Urgot','Vayne','Warwick','Yorick'],
+        wontPlay: ['Gwen','Irelia']
+      },
+      'Jungle': {
+        ready: ['Sejuani','Zeri','Rengar','Kindred','JarvanIV','Diana','Nocturne','Ivern','Elise','Nidalee','Zac','Khazix'],
+        practicing: ['Vayne','XinZhao','Fiddlesticks','Nunu','Katarina','LeeSin','Varus'],
+        wontPlay: ['Zyra','Malphite']
+      },
+      'Mid': {
+        ready: ['Zoe','Leblanc','Orianna','Vex','Varus','Azir'],
+        practicing: ['Galio','Naafiri','Sylas','Katarina','Pantheon'],
+        wontPlay: []
+      },
+      'ADC': {
+        ready: ['Zeri','Vayne','Varus'],
+        practicing: ['Swain','Sivir','Cassiopeia','Veigar','Twitch','KogMaw'],
+        wontPlay: ['Ashe','Jhin','Jinx','Lucian','Katarina']
+      },
+      'Support': {
+        ready: ['Zyra','Nami','Braum','Nautilus','Morgana','Poppy','Bard','Leona','Rakan'],
+        practicing: [],
+        wontPlay: ['Katarina']
+      }
+    };
+
+    const players = db.prepare('SELECT * FROM players').all();
+    let updated = 0;
+
+    for (const player of players) {
+      const pool = poolData[player.role];
+      if (!pool) continue;
+
+      const allChamps = [...pool.ready, ...pool.practicing];
+
+      db.prepare('UPDATE players SET champion_pool_data = ?, champion_pool = ? WHERE id = ?')
+        .run(JSON.stringify(pool), allChamps.join(','), player.id);
+      updated++;
+    }
+
+    res.json({ success: true, updated });
+  } catch (error) {
+    console.error('Error seeding champion pools:', error);
+    res.status(500).json({ error: 'Failed to seed champion pools' });
+  }
+});
+
 // Delete player (admin only)
 router.delete('/:id', authenticateToken, requireAdmin, (req, res) => {
   try {

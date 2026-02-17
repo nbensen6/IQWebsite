@@ -256,6 +256,26 @@ try {
   db.exec(`ALTER TABLE match_stats ADD COLUMN source TEXT DEFAULT 'csv'`);
 } catch (e) {}
 
+// Add champion_pool_data column for tiered champion pools (JSON)
+try {
+  db.exec(`ALTER TABLE players ADD COLUMN champion_pool_data TEXT`);
+} catch (e) {}
+
+// Draft flowcharts table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS draft_flowcharts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES enemy_teams(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+
 console.log('Database initialized successfully');
 
 module.exports = db;
