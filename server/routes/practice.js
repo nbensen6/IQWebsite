@@ -246,7 +246,7 @@ router.get('/matches', authenticateToken, (req, res) => {
     const matches = db.prepare(query).all(...params);
 
     // Parse participants and add player info
-    const players = db.prepare('SELECT id, summoner_name, riot_puuid, profile_icon_id, role FROM players').all();
+    const players = db.prepare('SELECT id, summoner_name, riot_puuid, profile_icon_id, role, opgg_username, opgg_region FROM players').all();
     const puuidToPlayer = {};
     players.forEach(p => {
       puuidToPlayer[p.riot_puuid] = p;
@@ -264,7 +264,9 @@ router.get('/matches', authenticateToken, (req, res) => {
           playerId: puuidToPlayer[p.puuid]?.id,
           playerName: puuidToPlayer[p.puuid]?.summoner_name,
           profileIconId: puuidToPlayer[p.puuid]?.profile_icon_id,
-          role: puuidToPlayer[p.puuid]?.role
+          role: puuidToPlayer[p.puuid]?.role,
+          opggUsername: puuidToPlayer[p.puuid]?.opgg_username,
+          opggRegion: puuidToPlayer[p.puuid]?.opgg_region
         }))
       };
     });

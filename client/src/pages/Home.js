@@ -19,25 +19,25 @@ function Home() {
         )}
 
         <div className="home-features">
-          <div className="card feature-card">
+          <Link to="/stats" className="card feature-card feature-link">
             <h3>Stats Tracking</h3>
             <p>Auto-sync practice matches from Riot API and track champion performance across the team.</p>
-          </div>
+          </Link>
 
-          <div className="card feature-card">
+          <Link to="/draft" className="card feature-card feature-link">
             <h3>Draft Helper</h3>
             <p>Plan your team compositions with our interactive draft tool.</p>
-          </div>
+          </Link>
 
-          <div className="card feature-card">
+          <Link to="/scouting" className="card feature-card feature-link">
             <h3>Team Scouting</h3>
             <p>Scout enemy teams with draft screenshots and notes.</p>
-          </div>
+          </Link>
 
-          <div className="card feature-card">
+          <Link to="/notes" className="card feature-card feature-link">
             <h3>Personal Notes</h3>
             <p>Keep notes on champions, strategies, and matchups.</p>
-          </div>
+          </Link>
         </div>
       </div>
     </VideoBackground>

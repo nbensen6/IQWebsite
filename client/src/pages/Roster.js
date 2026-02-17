@@ -167,37 +167,6 @@ function Roster() {
     }
   };
 
-  const handleSyncRiot = async (playerId) => {
-    try {
-      const response = await api.post(`/players/${playerId}/sync-riot`);
-      setPlayers(players.map(p =>
-        p.id === playerId ? response.data : p
-      ));
-    } catch (err) {
-      console.error('Failed to sync Riot data:', err.response?.data?.error || err.message);
-      alert(err.response?.data?.error || 'Failed to sync Riot data');
-    }
-  };
-
-  const [refreshingAll, setRefreshingAll] = useState(false);
-
-  const handleRefreshAll = async () => {
-    setRefreshingAll(true);
-    try {
-      const playersWithRiot = players.filter(p => p.opgg_username);
-      for (const player of playersWithRiot) {
-        try {
-          const response = await api.post(`/players/${player.id}/sync-riot`);
-          setPlayers(prev => prev.map(p => p.id === player.id ? response.data : p));
-        } catch (err) {
-          console.error(`Failed to sync ${player.summoner_name}`);
-        }
-      }
-    } finally {
-      setRefreshingAll(false);
-    }
-  };
-
   const getRankDisplay = (player) => {
     if (!player.rank_tier) return null;
     const winRate = player.rank_wins && player.rank_losses
@@ -440,13 +409,6 @@ function Roster() {
             <h3 className="card-title">Admin Panel</h3>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
-                className="btn btn-secondary btn-small"
-                onClick={handleRefreshAll}
-                disabled={refreshingAll}
-              >
-                {refreshingAll ? 'Refreshing...' : 'Refresh All'}
-              </button>
-              <button
                 className="btn btn-primary btn-small"
                 onClick={() => setShowAddPlayer(!showAddPlayer)}
               >
@@ -567,14 +529,6 @@ function Roster() {
               <div key={player.id} className="card player-card">
                 {/* Action Buttons */}
                 <div className="player-card-actions">
-                  {player.opgg_username && canEdit && (
-                    <button
-                      onClick={() => handleSyncRiot(player.id)}
-                      title="Sync Riot Data"
-                    >
-                      ↻
-                    </button>
-                  )}
                   {isAdmin && (
                     <button
                       className="delete-btn"

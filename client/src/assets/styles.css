@@ -370,6 +370,13 @@ tr:hover {
   margin-bottom: 1rem;
 }
 
+.feature-link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+}
+
 /* Stats page */
 .stats-header {
   display: flex;

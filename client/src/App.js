@@ -10,7 +10,6 @@ import DraftHelper from './pages/DraftHelper';
 import Notes from './pages/Notes';
 import Scouting from './pages/Scouting';
 import Roster from './pages/Roster';
-import Announcements from './pages/Announcements';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -52,7 +51,6 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="/roster" element={<Roster />} />
-          <Route path="/announcements" element={<Announcements />} />
         </Routes>
       </main>
     </div>

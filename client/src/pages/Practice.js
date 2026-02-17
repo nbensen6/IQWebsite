@@ -1,21 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 function Practice() {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [scanning, setScanning] = useState(false);
   const [overview, setOverview] = useState(null);
   const [playerStats, setPlayerStats] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [settings, setSettings] = useState({ auto_pool_threshold: 3 });
   const [expandedMatches, setExpandedMatches] = useState(new Set());
   const [expandedPlayers, setExpandedPlayers] = useState(new Set());
   const [version, setVersion] = useState('14.1.1');
-  const [scanResult, setScanResult] = useState(null);
-
-  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     fetchData();
@@ -32,11 +25,6 @@ function Practice() {
       setOverview(overviewRes.data);
       setPlayerStats(statsRes.data);
       setMatches(matchesRes.data.matches);
-
-      if (isAdmin) {
-        const settingsRes = await api.get('/practice/settings');
-        setSettings(settingsRes.data);
-      }
     } catch (err) {
       console.error('Failed to load practice data:', err);
     } finally {
@@ -51,32 +39,6 @@ function Practice() {
       setVersion(versions[0]);
     } catch (err) {
       console.error('Failed to fetch version');
-    }
-  };
-
-  const handleScan = async () => {
-    setScanning(true);
-    setScanResult(null);
-    try {
-      const response = await api.post('/practice/scan');
-      setScanResult(response.data);
-      await fetchData();
-    } catch (err) {
-      console.error('Scan failed:', err);
-      alert(err.response?.data?.error || 'Failed to scan for practice matches');
-    } finally {
-      setScanning(false);
-    }
-  };
-
-  const handleUpdateThreshold = async (newThreshold) => {
-    try {
-      const response = await api.put('/practice/settings', {
-        auto_pool_threshold: newThreshold
-      });
-      setSettings(response.data);
-    } catch (err) {
-      console.error('Failed to update settings');
     }
   };
 
@@ -98,6 +60,25 @@ function Practice() {
       minute: '2-digit'
     });
   };
+
+  const getOpggUrl = (riotId, region) => {
+    if (!riotId) return null;
+    const r = region || 'na';
+    const formatted = riotId.replace('#', '-');
+    return `https://www.op.gg/summoners/${r}/${encodeURIComponent(formatted)}`;
+  };
+
+  // Build puuid->opgg lookup from roster participants across all matches
+  const opggLookup = {};
+  matches.forEach(match => {
+    if (match.rosterParticipants) {
+      match.rosterParticipants.forEach(p => {
+        if (p.puuid && p.opggUsername) {
+          opggLookup[p.puuid] = { username: p.opggUsername, region: p.opggRegion };
+        }
+      });
+    }
+  });
 
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -130,46 +111,6 @@ function Practice() {
   return (
     <div className="practice-page">
       <h1 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Team Stats</h1>
-
-      {/* Admin Controls */}
-      {isAdmin && (
-        <div className="card mb-3">
-          <div className="card-header">
-            <h3 className="card-title">Scan Controls</h3>
-          </div>
-          <div className="practice-controls">
-            <button
-              className="btn btn-primary"
-              onClick={handleScan}
-              disabled={scanning}
-            >
-              {scanning ? 'Scanning...' : 'Scan for Practice Games'}
-            </button>
-            <div className="threshold-control">
-              <label>Auto-add to pool after:</label>
-              <select
-                value={settings.auto_pool_threshold}
-                onChange={(e) => handleUpdateThreshold(parseInt(e.target.value))}
-              >
-                {[1, 2, 3, 4, 5, 10].map(n => (
-                  <option key={n} value={n}>{n} games</option>
-                ))}
-              </select>
-            </div>
-            {overview?.lastScan && (
-              <span className="last-scan">
-                Last scan: {formatDate(overview.lastScan)}
-              </span>
-            )}
-          </div>
-          {scanResult && (
-            <div className="scan-result">
-              Scanned {scanResult.matchesScanned} matches, found {scanResult.practiceMatchesFound} practice games.
-              {scanResult.poolsUpdated > 0 && ` Updated ${scanResult.poolsUpdated} champion pools.`}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Team Overview */}
       {overview && overview.totalMatches > 0 && (
@@ -233,7 +174,7 @@ function Practice() {
         </div>
         {playerStats.length === 0 || playerStats.every(p => p.totalGames === 0) ? (
           <p style={{ color: 'var(--text-secondary)' }}>
-            No practice stats yet. {isAdmin ? 'Use the scan button above to find practice matches.' : 'Ask an admin to scan for practice matches.'}
+            No practice stats yet. Practice matches are auto-synced twice daily.
           </p>
         ) : (
           <div className="player-cards-grid">
@@ -340,7 +281,11 @@ function Practice() {
                           className="champion-icon-small"
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
-                        <span className="participant-name">{p.playerName}</span>
+                        {p.opggUsername ? (
+                          <a href={getOpggUrl(p.opggUsername, p.opggRegion)} target="_blank" rel="noopener noreferrer" className="participant-name opgg-link">{p.playerName}</a>
+                        ) : (
+                          <span className="participant-name">{p.playerName}</span>
+                        )}
                         <span className="participant-kda">{p.kills}/{p.deaths}/{p.assists}</span>
                       </div>
                     ))}
@@ -361,6 +306,7 @@ function Practice() {
                             .filter(p => p.teamId === teamId)
                             .map((p, idx) => {
                               const isRoster = match.rosterParticipants.some(rp => rp.puuid === p.puuid);
+                              const opgg = opggLookup[p.puuid];
                               return (
                                 <div key={idx} className={`participant ${isRoster ? 'roster' : ''}`}>
                                   <img
@@ -369,7 +315,11 @@ function Practice() {
                                     className="champion-icon-small"
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                   />
-                                  <span className="name">{p.summonerName}</span>
+                                  {opgg ? (
+                                    <a href={getOpggUrl(opgg.username, opgg.region)} target="_blank" rel="noopener noreferrer" className="name opgg-link">{p.summonerName}</a>
+                                  ) : (
+                                    <span className="name">{p.summonerName}</span>
+                                  )}
                                   <span className="kda">{p.kills}/{p.deaths}/{p.assists}</span>
                                   <span className="cs">{p.cs} CS</span>
                                 </div>
@@ -814,6 +764,17 @@ function Practice() {
 
         .participant .name {
           flex: 1;
+        }
+
+        .participant .name.opgg-link,
+        .roster-participant .participant-name.opgg-link {
+          color: var(--accent-blue, #38bdf8);
+          text-decoration: none;
+        }
+
+        .participant .name.opgg-link:hover,
+        .roster-participant .participant-name.opgg-link:hover {
+          text-decoration: underline;
         }
 
         .participant .kda {

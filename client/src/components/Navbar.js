@@ -19,7 +19,6 @@ function Navbar() {
 
       <div className="nav-links">
         <NavLink to="/" end>Home</NavLink>
-        <NavLink to="/announcements">Announcements</NavLink>
         <NavLink to="/roster">Roster</NavLink>
         {user && (
           <>
