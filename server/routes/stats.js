@@ -83,6 +83,124 @@ router.get('/player/:name', authenticateToken, (req, res) => {
   }
 });
 
+// Auto-import recent matches from Riot API for all players (called by cron job)
+router.post('/auto-import', async (req, res) => {
+  try {
+    const cronSecret = req.headers['x-cron-secret'];
+    if (cronSecret !== process.env.CRON_SECRET && cronSecret !== 'internal-refresh') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const RIOT_API_KEY = process.env.RIOT_API_KEY;
+    if (!RIOT_API_KEY) {
+      return res.status(500).json({ error: 'Riot API key not configured' });
+    }
+
+    const players = db.prepare('SELECT * FROM players WHERE riot_puuid IS NOT NULL').all();
+
+    const regionMap = {
+      'na': 'na1', 'euw': 'euw1', 'eune': 'eun1', 'kr': 'kr',
+      'br': 'br1', 'lan': 'la1', 'las': 'la2', 'oce': 'oc1',
+      'tr': 'tr1', 'ru': 'ru', 'jp': 'jp1'
+    };
+    const routingMap = {
+      'na': 'americas', 'br': 'americas', 'lan': 'americas', 'las': 'americas',
+      'euw': 'europe', 'eune': 'europe', 'tr': 'europe', 'ru': 'europe',
+      'kr': 'asia', 'jp': 'asia', 'oce': 'sea'
+    };
+
+    const riotFetch = async (url) => {
+      const response = await fetch(url, {
+        headers: { 'X-Riot-Token': RIOT_API_KEY }
+      });
+      if (!response.ok) {
+        const error = new Error(`Riot API: ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return response.json();
+    };
+
+    const insert = db.prepare(`
+      INSERT INTO match_stats (player, match_date, champion, kills, deaths, assists, cs, vision_score, damage, gold, result, riot_match_id, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'riot_api')
+    `);
+
+    let imported = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const player of players) {
+      try {
+        const region = player.opgg_region || 'na';
+        const routing = routingMap[region] || 'americas';
+
+        // Fetch recent match IDs
+        const matchIds = await riotFetch(
+          `https://${routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/${player.riot_puuid}/ids?count=10`
+        );
+
+        for (const matchId of matchIds) {
+          // Check if this match already exists for this player
+          const existing = db.prepare(
+            'SELECT id FROM match_stats WHERE riot_match_id = ? AND player = ?'
+          ).get(matchId, player.summoner_name);
+
+          if (existing) {
+            skipped++;
+            continue;
+          }
+
+          try {
+            const match = await riotFetch(
+              `https://${routing}.api.riotgames.com/lol/match/v5/matches/${matchId}`
+            );
+
+            const participant = match.info.participants.find(
+              p => p.puuid === player.riot_puuid
+            );
+            if (!participant) continue;
+
+            const matchDate = new Date(match.info.gameCreation).toISOString().split('T')[0];
+
+            insert.run(
+              player.summoner_name,
+              matchDate,
+              participant.championName,
+              participant.kills,
+              participant.deaths,
+              participant.assists,
+              participant.totalMinionsKilled + participant.neutralMinionsKilled,
+              participant.visionScore,
+              participant.totalDamageDealtToChampions,
+              participant.goldEarned,
+              participant.win ? 'Win' : 'Loss',
+              matchId
+            );
+            imported++;
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } catch (e) {
+            console.log(`Failed to fetch match ${matchId}:`, e.message);
+          }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500)); // Rate limit between players
+      } catch (e) {
+        console.error(`Failed to import stats for ${player.summoner_name}:`, e.message);
+        failed++;
+      }
+    }
+
+    console.log(`Stats auto-import complete: ${imported} imported, ${skipped} skipped, ${failed} failed`);
+    res.json({ success: true, imported, skipped, failed });
+
+  } catch (error) {
+    console.error('Stats auto-import error:', error);
+    res.status(500).json({ error: 'Failed to auto-import stats' });
+  }
+});
+
 // Delete a stat entry
 router.delete('/:id', authenticateToken, (req, res) => {
   try {

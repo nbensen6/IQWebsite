@@ -1,18 +1,27 @@
-name: Nightly Stats Refresh
+name: Scheduled Data Refresh
 
 on:
   schedule:
-    # Run at 4:00 AM UTC every day
-    - cron: '0 4 * * *'
+    # Run twice daily: 6 AM and 6 PM UTC
+    - cron: '0 6,18 * * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
-      - name: Refresh all player stats
+      - name: Refresh all player stats (Roster)
         run: |
           curl -X POST https://iq-lol-team.fly.dev/api/players/refresh-all \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"
+
+      - name: Wait for rate limits
+        run: sleep 30
+
+      - name: Auto-import match stats (Stats page)
+        run: |
+          curl -X POST https://iq-lol-team.fly.dev/api/stats/auto-import \
             -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json"
 

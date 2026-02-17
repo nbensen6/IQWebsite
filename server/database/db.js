@@ -248,6 +248,14 @@ try {
   db.exec(`ALTER TABLE practice_player_stats ADD COLUMN total_damage_taken INTEGER DEFAULT 0`);
 } catch (e) {}
 
+// Add riot_match_id and source columns to match_stats for auto-import deduplication
+try {
+  db.exec(`ALTER TABLE match_stats ADD COLUMN riot_match_id TEXT`);
+} catch (e) {}
+try {
+  db.exec(`ALTER TABLE match_stats ADD COLUMN source TEXT DEFAULT 'csv'`);
+} catch (e) {}
+
 console.log('Database initialized successfully');
 
 module.exports = db;
