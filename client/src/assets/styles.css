@@ -2048,3 +2048,255 @@ tr:hover {
 .fc-modal-content {
   position: relative;
 }
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+/* Champion Pool Editor Modal */
+.pool-editor-modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--card-shadow);
+}
+
+.pool-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pool-editor-header h3 {
+  font-size: 1.1rem;
+  color: var(--accent-gold);
+}
+
+.pool-editor-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+}
+
+.pool-search-section {
+  position: relative;
+  margin-bottom: 1.25rem;
+}
+
+.pool-search-input {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.pool-search-input:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+}
+
+.pool-search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0 0 8px 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.pool-search-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pool-search-item:last-child {
+  border-bottom: none;
+}
+
+.pool-search-item img {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.pool-search-item span {
+  flex: 1;
+  font-size: 0.85rem;
+}
+
+.pool-search-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.pool-add-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pool-add-btn.ready {
+  background: rgba(34, 197, 94, 0.2);
+  color: var(--success);
+}
+
+.pool-add-btn.ready:hover {
+  background: rgba(34, 197, 94, 0.4);
+}
+
+.pool-add-btn.practicing {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--accent-gold-light);
+}
+
+.pool-add-btn.practicing:hover {
+  background: rgba(251, 191, 36, 0.4);
+}
+
+.pool-add-btn.wont-play {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+}
+
+.pool-add-btn.wont-play:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.pool-search-empty {
+  padding: 0.75rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.pool-editor-tier {
+  margin-bottom: 1rem;
+}
+
+.pool-editor-tier-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.pool-tier-count {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.pool-editor-champs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.5rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.pool-editor-champ {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.pool-editor-champ img {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  display: block;
+}
+
+.pool-champ-actions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.pool-editor-champ:hover .pool-champ-actions {
+  display: flex;
+}
+
+.pool-champ-actions button {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 2px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.pool-champ-actions button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.pool-champ-actions button.remove {
+  color: var(--error);
+  font-size: 0.7rem;
+}
+
+.pool-editor-empty {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 0.25rem;
+}
+
+.pool-editor-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+}

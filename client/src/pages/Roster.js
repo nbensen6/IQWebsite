@@ -63,6 +63,12 @@ function Roster() {
 
   const [champions, setChampions] = useState([]);
 
+  // Champion pool editor state
+  const [editingPool, setEditingPool] = useState(null); // player id
+  const [poolDraft, setPoolDraft] = useState({ ready: [], practicing: [], wontPlay: [] });
+  const [poolSearch, setPoolSearch] = useState('');
+  const [savingPool, setSavingPool] = useState(false);
+
   useEffect(() => {
     fetchPlayers();
     fetchVersion();
@@ -289,6 +295,76 @@ function Roster() {
     } catch (err) {
       console.error('Failed to delete composition');
     }
+  };
+
+  // Champion pool editor handlers
+  const openPoolEditor = (player) => {
+    let poolData = { ready: [], practicing: [], wontPlay: [] };
+    try {
+      if (player.champion_pool_data) {
+        poolData = JSON.parse(player.champion_pool_data);
+      }
+    } catch (e) {}
+    setPoolDraft({
+      ready: poolData.ready || [],
+      practicing: poolData.practicing || [],
+      wontPlay: poolData.wontPlay || []
+    });
+    setPoolSearch('');
+    setEditingPool(player.id);
+  };
+
+  const closePoolEditor = () => {
+    setEditingPool(null);
+    setPoolDraft({ ready: [], practicing: [], wontPlay: [] });
+    setPoolSearch('');
+  };
+
+  const isChampInPool = (champId) => {
+    return poolDraft.ready.includes(champId) ||
+      poolDraft.practicing.includes(champId) ||
+      poolDraft.wontPlay.includes(champId);
+  };
+
+  const addChampToTier = (champId, tier) => {
+    if (isChampInPool(champId)) return;
+    setPoolDraft(prev => ({ ...prev, [tier]: [...prev[tier], champId] }));
+  };
+
+  const removeChampFromTier = (champId, tier) => {
+    setPoolDraft(prev => ({ ...prev, [tier]: prev[tier].filter(c => c !== champId) }));
+  };
+
+  const moveChampToTier = (champId, fromTier, toTier) => {
+    setPoolDraft(prev => ({
+      ...prev,
+      [fromTier]: prev[fromTier].filter(c => c !== champId),
+      [toTier]: [...prev[toTier], champId]
+    }));
+  };
+
+  const handleSavePool = async () => {
+    setSavingPool(true);
+    try {
+      const response = await api.patch(`/players/${editingPool}/champion-pool-data`, {
+        champion_pool_data: poolDraft
+      });
+      setPlayers(players.map(p => p.id === editingPool ? response.data : p));
+      closePoolEditor();
+    } catch (err) {
+      console.error('Failed to save champion pool');
+      alert(err.response?.data?.error || 'Failed to save champion pool');
+    } finally {
+      setSavingPool(false);
+    }
+  };
+
+  const getFilteredChampions = () => {
+    if (!poolSearch.trim()) return [];
+    return champions.filter(c =>
+      c.name.toLowerCase().includes(poolSearch.toLowerCase()) &&
+      !isChampInPool(c.id)
+    ).slice(0, 12);
   };
 
   const getOpggUrl = (player) => {
@@ -715,7 +791,18 @@ function Roster() {
                   if (poolData) {
                     return (
                       <div className="player-champion-pool-section">
-                        <h4>Champion Pool</h4>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h4>Champion Pool</h4>
+                          {canEdit && (
+                            <button
+                              className="btn btn-secondary btn-small"
+                              onClick={() => openPoolEditor(player)}
+                              style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+                            >
+                              Edit Pool
+                            </button>
+                          )}
+                        </div>
                         {poolData.ready && poolData.ready.length > 0 && (
                           <div className="pool-tier">
                             <span className="pool-tier-label ready">Ready</span>
@@ -757,7 +844,18 @@ function Roster() {
                   if (player.champion_pool && !championStats.length) {
                     return (
                       <div className="player-champion-pool-section">
-                        <h4>Champion Pool</h4>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h4>Champion Pool</h4>
+                          {canEdit && (
+                            <button
+                              className="btn btn-secondary btn-small"
+                              onClick={() => openPoolEditor(player)}
+                              style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+                            >
+                              Edit Pool
+                            </button>
+                          )}
+                        </div>
                         <div className="champion-pool-icons">
                           {player.champion_pool.split(',').map((champ, idx) => (
                             <img key={idx} src={getChampionImage(champ.trim())} alt={champ.trim()}
@@ -765,6 +863,21 @@ function Roster() {
                               onError={(e) => { e.target.style.display = 'none'; }} />
                           ))}
                         </div>
+                      </div>
+                    );
+                  }
+
+                  // No pool data at all - show add button
+                  if (canEdit) {
+                    return (
+                      <div className="player-champion-pool-section">
+                        <button
+                          className="btn btn-secondary btn-small"
+                          onClick={() => openPoolEditor(player)}
+                          style={{ width: '100%' }}
+                        >
+                          + Set Champion Pool
+                        </button>
                       </div>
                     );
                   }
@@ -936,6 +1049,101 @@ function Roster() {
           </div>
         )}
         </div>
+
+      {/* Champion Pool Editor Modal */}
+      {editingPool && (
+        <div className="modal-overlay" onClick={closePoolEditor}>
+          <div className="pool-editor-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pool-editor-header">
+              <h3>Edit Champion Pool - {players.find(p => p.id === editingPool)?.summoner_name}</h3>
+              <button className="modal-close" onClick={closePoolEditor}>&times;</button>
+            </div>
+
+            <div className="pool-editor-body">
+              {/* Search Bar */}
+              <div className="pool-search-section">
+                <input
+                  type="text"
+                  className="pool-search-input"
+                  placeholder="Search champions to add..."
+                  value={poolSearch}
+                  onChange={(e) => setPoolSearch(e.target.value)}
+                  autoFocus
+                />
+                {poolSearch && (
+                  <div className="pool-search-results">
+                    {getFilteredChampions().map(champ => (
+                      <div key={champ.id} className="pool-search-item">
+                        <img src={getChampionImage(champ.id)} alt={champ.name}
+                          onError={(e) => { e.target.style.display = 'none'; }} />
+                        <span>{champ.name}</span>
+                        <div className="pool-search-actions">
+                          <button className="pool-add-btn ready" onClick={() => addChampToTier(champ.id, 'ready')}
+                            title="Add to Ready">R</button>
+                          <button className="pool-add-btn practicing" onClick={() => addChampToTier(champ.id, 'practicing')}
+                            title="Add to Practicing">P</button>
+                          <button className="pool-add-btn wont-play" onClick={() => addChampToTier(champ.id, 'wontPlay')}
+                            title="Add to Won't Play">W</button>
+                        </div>
+                      </div>
+                    ))}
+                    {getFilteredChampions().length === 0 && poolSearch.trim() && (
+                      <div className="pool-search-empty">No matching champions found</div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Tier Lists */}
+              {[
+                { key: 'ready', label: 'Ready', className: 'ready' },
+                { key: 'practicing', label: 'Practicing', className: 'practicing' },
+                { key: 'wontPlay', label: "Won't Play", className: 'wont-play' }
+              ].map(tier => (
+                <div key={tier.key} className="pool-editor-tier">
+                  <div className="pool-editor-tier-header">
+                    <span className={`pool-tier-label ${tier.className}`}>{tier.label}</span>
+                    <span className="pool-tier-count">{poolDraft[tier.key].length}</span>
+                  </div>
+                  <div className="pool-editor-champs">
+                    {poolDraft[tier.key].map(champId => {
+                      const champName = champions.find(c => c.id === champId)?.name || champId;
+                      return (
+                        <div key={champId} className="pool-editor-champ">
+                          <img src={getChampionImage(champId)} alt={champName} title={champName}
+                            onError={(e) => { e.target.style.display = 'none'; }} />
+                          <div className="pool-champ-actions">
+                            {tier.key !== 'ready' && (
+                              <button title="Move to Ready" onClick={() => moveChampToTier(champId, tier.key, 'ready')}>R</button>
+                            )}
+                            {tier.key !== 'practicing' && (
+                              <button title="Move to Practicing" onClick={() => moveChampToTier(champId, tier.key, 'practicing')}>P</button>
+                            )}
+                            {tier.key !== 'wontPlay' && (
+                              <button title="Move to Won't Play" onClick={() => moveChampToTier(champId, tier.key, 'wontPlay')}>W</button>
+                            )}
+                            <button className="remove" title="Remove" onClick={() => removeChampFromTier(champId, tier.key)}>&times;</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {poolDraft[tier.key].length === 0 && (
+                      <span className="pool-editor-empty">No champions in this tier</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="pool-editor-footer">
+              <button className="btn btn-secondary" onClick={closePoolEditor}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSavePool} disabled={savingPool}>
+                {savingPool ? 'Saving...' : 'Save Pool'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </VideoBackground>
   );
