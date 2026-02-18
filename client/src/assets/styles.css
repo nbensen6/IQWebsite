@@ -1883,8 +1883,8 @@ tr:hover {
 }
 
 .fc-decision {
-  border-color: var(--accent-gold);
-  background: rgba(245, 158, 11, 0.08);
+  border-color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
   transform: rotate(0deg);
   border-style: double;
   border-width: 3px;
@@ -2483,7 +2483,57 @@ tr:hover {
 
 .fc-toolbar-right {
   display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.fc-zoom-controls {
+  display: flex;
+  align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-right: 0.5rem;
+}
+
+.fc-zoom-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.fc-zoom-btn:hover {
+  background: var(--bg-hover);
+}
+
+.fc-zoom-label {
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  padding: 0 0.5rem;
+  height: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-width: 48px;
+  justify-content: center;
+}
+
+.fc-zoom-label:hover {
+  color: var(--text-primary);
 }
 
 .fc-name-input {
@@ -2538,7 +2588,8 @@ tr:hover {
 }
 
 .fc-pal-decision {
-  border-color: var(--accent-gold);
+  border-color: var(--success);
+  color: var(--success);
   border-style: double;
   border-width: 3px;
 }
@@ -2628,10 +2679,10 @@ tr:hover {
 }
 
 .fc-canvas-shape.fc-decision {
-  border-color: var(--accent-gold);
+  border-color: var(--success);
   border-style: double;
   border-width: 3px;
-  background: rgba(245, 158, 11, 0.08);
+  background: rgba(34, 197, 94, 0.08);
   font-weight: 500;
 }
 

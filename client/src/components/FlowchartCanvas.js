@@ -162,6 +162,7 @@ function FlowchartCanvas({
   const [panning, setPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
 
   // Champion sidebar
   const [champSearch, setChampSearch] = useState('');
@@ -171,6 +172,8 @@ function FlowchartCanvas({
   const canvasRef = useRef(null);
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   // Load a flowchart from the sidebar list
   const loadFlowchart = useCallback((fc) => {
@@ -205,10 +208,10 @@ function FlowchartCanvas({
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
     return {
-      x: e.clientX - rect.left - canvasOffset.x,
-      y: e.clientY - rect.top - canvasOffset.y
+      x: (e.clientX - rect.left - canvasOffset.x) / zoom,
+      y: (e.clientY - rect.top - canvasOffset.y) / zoom
     };
-  }, [canvasOffset]);
+  }, [canvasOffset, zoom]);
 
   const handleCanvasMouseDown = (e) => {
     if (e.target === canvasRef.current || e.target.classList.contains('fc-canvas-inner') || e.target.tagName === 'svg') {
@@ -242,11 +245,11 @@ function FlowchartCanvas({
       if (!rect) return;
       setDrawingEdge(prev => ({
         ...prev,
-        mouseX: e.clientX - rect.left - canvasOffset.x,
-        mouseY: e.clientY - rect.top - canvasOffset.y
+        mouseX: (e.clientX - rect.left - canvasOffset.x) / zoom,
+        mouseY: (e.clientY - rect.top - canvasOffset.y) / zoom
       }));
     }
-  }, [panning, panStart, draggingNodeId, dragOffset, drawingEdge, getCanvasPoint, canvasOffset]);
+  }, [panning, panStart, draggingNodeId, dragOffset, drawingEdge, getCanvasPoint, canvasOffset, zoom]);
 
   const handleCanvasMouseUp = useCallback((e) => {
     if (panning) {
@@ -295,6 +298,35 @@ function FlowchartCanvas({
     };
   }, [handleCanvasMouseUp, handleCanvasMouseMove]);
 
+  // Mouse wheel zoom (pinch-to-zoom on trackpad)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handleWheel = (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const oldZoom = zoomRef.current;
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const newZoom = Math.min(3, Math.max(0.2, oldZoom * delta));
+
+      // Zoom toward cursor position
+      setCanvasOffset(prev => ({
+        x: mouseX - (mouseX - prev.x) * (newZoom / oldZoom),
+        y: mouseY - (mouseY - prev.y) * (newZoom / oldZoom)
+      }));
+      setZoom(newZoom);
+    };
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  const handleZoomIn = () => setZoom(z => Math.min(3, z * 1.2));
+  const handleZoomOut = () => setZoom(z => Math.max(0.2, z / 1.2));
+  const handleZoomReset = () => { setZoom(1); setCanvasOffset({ x: 0, y: 0 }); };
+
   // Node drag
   const handleNodeMouseDown = (e, nodeId) => {
     e.stopPropagation();
@@ -314,8 +346,8 @@ function FlowchartCanvas({
     setDrawingEdge({
       fromNodeId: nodeId,
       fromPort: port,
-      mouseX: e.clientX - rect.left - canvasOffset.x,
-      mouseY: e.clientY - rect.top - canvasOffset.y
+      mouseX: (e.clientX - rect.left - canvasOffset.x) / zoom,
+      mouseY: (e.clientY - rect.top - canvasOffset.y) / zoom
     });
   };
 
@@ -472,6 +504,13 @@ function FlowchartCanvas({
             </div>
           </div>
           <div className="fc-toolbar-right">
+            <div className="fc-zoom-controls">
+              <button className="fc-zoom-btn" onClick={handleZoomOut} title="Zoom out">-</button>
+              <button className="fc-zoom-label" onClick={handleZoomReset} title="Reset zoom">
+                {Math.round(zoom * 100)}%
+              </button>
+              <button className="fc-zoom-btn" onClick={handleZoomIn} title="Zoom in">+</button>
+            </div>
             <button
               className="btn btn-primary btn-small"
               onClick={handleSave}
@@ -498,7 +537,8 @@ function FlowchartCanvas({
             <div
               className="fc-canvas-inner"
               style={{
-                transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px)`,
+                transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${zoom})`,
+                transformOrigin: '0 0',
                 width: svgWidth,
                 height: svgHeight
               }}
