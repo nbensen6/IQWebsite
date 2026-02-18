@@ -2580,6 +2580,8 @@ tr:hover {
 .fc-pal-start {
   border-color: var(--accent-gold);
   color: var(--accent-gold);
+  border-radius: 50%;
+  padding: 0.35rem 1rem;
 }
 
 .fc-pal-action {
@@ -2590,8 +2592,9 @@ tr:hover {
 .fc-pal-decision {
   border-color: var(--success);
   color: var(--success);
-  border-style: double;
-  border-width: 3px;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  padding: 0.5rem 1.5rem;
+  background: rgba(34, 197, 94, 0.15);
 }
 
 .fc-pal-note {
@@ -2664,26 +2667,67 @@ tr:hover {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
+.fc-canvas-shape.fc-decision:hover {
+  border: none;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+}
+
 .fc-canvas-shape.selected {
   border-color: var(--accent-gold);
   box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
   background: rgba(245, 158, 11, 0.1);
 }
 
+.fc-canvas-shape.fc-decision.selected {
+  border: none;
+  background: transparent;
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+}
+
 .fc-canvas-shape.fc-start {
   border-color: var(--accent-gold);
-  border-radius: 24px;
+  border-radius: 50%;
   background: rgba(245, 158, 11, 0.1);
   font-weight: 600;
   color: var(--accent-gold);
 }
 
+/* Diamond shape via pseudo-elements */
 .fc-canvas-shape.fc-decision {
-  border-color: var(--success);
-  border-style: double;
-  border-width: 3px;
-  background: rgba(34, 197, 94, 0.08);
+  background: transparent;
+  border: none;
   font-weight: 500;
+  overflow: visible;
+}
+
+.fc-canvas-shape.fc-decision::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--success);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  z-index: -2;
+}
+
+.fc-canvas-shape.fc-decision::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  background: rgba(34, 197, 94, 0.12);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  z-index: -1;
+}
+
+.fc-canvas-shape.fc-decision:hover::after {
+  background: rgba(34, 197, 94, 0.2);
+}
+
+.fc-canvas-shape.fc-decision.selected::before {
+  background: var(--accent-gold);
+}
+
+.fc-canvas-shape.fc-decision.selected::after {
+  background: rgba(245, 158, 11, 0.15);
 }
 
 .fc-canvas-shape.fc-action {

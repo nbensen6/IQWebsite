@@ -56,6 +56,18 @@ function autoLayout(nodes, edges) {
   return Object.values(nodeMap);
 }
 
+// Default sizes per node type
+const NODE_DEFAULTS = {
+  start:    { width: 160, height: 100 },
+  action:   { width: 220, height: 80 },
+  decision: { width: 180, height: 140 },
+  note:     { width: 220, height: 80 }
+};
+
+function getNodeSize(type) {
+  return NODE_DEFAULTS[type] || NODE_DEFAULTS.action;
+}
+
 // Migrate old championId → championIds array
 function migrateNode(n) {
   const node = { ...n };
@@ -65,8 +77,9 @@ function migrateNode(n) {
   }
   if (!node.championIds) node.championIds = [];
   // Upgrade old smaller sizes to new defaults
-  if (!node.width || node.width <= 160) node.width = 220;
-  if (!node.height || node.height <= 60) node.height = 80;
+  const defaults = getNodeSize(node.type);
+  if (!node.width || node.width <= 160) node.width = defaults.width;
+  if (!node.height || node.height <= 80) node.height = defaults.height;
   return node;
 }
 
@@ -143,7 +156,7 @@ function FlowchartCanvas({
       return autoLayout(data.nodes || [], data.edges || []).map(migrateNode);
     }
     const startId = generateId();
-    return [{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 220, height: 80, championIds: [] }];
+    return [{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 160, height: 100, championIds: [] }];
   });
   const [edges, setEdges] = useState(() => {
     if (initialFlowchart) {
@@ -154,6 +167,7 @@ function FlowchartCanvas({
   });
 
   const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [selectedEdge, setSelectedEdge] = useState(null); // { from, to }
 
   // Canvas interaction state
   const [draggingNodeId, setDraggingNodeId] = useState(null);
@@ -189,7 +203,7 @@ function FlowchartCanvas({
     const startId = generateId();
     setSelectedFcId(null);
     setFcName('');
-    setNodes([{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 220, height: 80, championIds: [] }]);
+    setNodes([{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 160, height: 100, championIds: [] }]);
     setEdges([]);
     setSelectedNodeId(null);
   };
@@ -216,6 +230,7 @@ function FlowchartCanvas({
   const handleCanvasMouseDown = (e) => {
     if (e.target === canvasRef.current || e.target.classList.contains('fc-canvas-inner') || e.target.tagName === 'svg') {
       setSelectedNodeId(null);
+      setSelectedEdge(null);
       setPanning(true);
       setPanStart({ x: e.clientX - canvasOffset.x, y: e.clientY - canvasOffset.y });
     }
@@ -336,6 +351,7 @@ function FlowchartCanvas({
     setDraggingNodeId(nodeId);
     setDragOffset({ x: point.x - node.x, y: point.y - node.y });
     setSelectedNodeId(nodeId);
+    setSelectedEdge(null);
   };
 
   // Port drag (start drawing edge)
@@ -360,9 +376,10 @@ function FlowchartCanvas({
     if (nodeType) {
       const point = getCanvasPoint(e);
       const newId = generateId();
+      const sz = getNodeSize(nodeType);
       setNodes(prev => [...prev, {
-        id: newId, type: nodeType, text: '', x: point.x - 110, y: point.y - 40,
-        width: 220, height: 80, championIds: []
+        id: newId, type: nodeType, text: '', x: point.x - sz.width / 2, y: point.y - sz.height / 2,
+        width: sz.width, height: sz.height, championIds: []
       }]);
       setSelectedNodeId(newId);
     } else if (champId) {
@@ -555,7 +572,6 @@ function FlowchartCanvas({
                   const toNode = nodes.find(n => n.id === edge.to);
                   if (!fromNode || !toNode) return null;
 
-                  // Always compute ports dynamically so arrows stay aligned when nodes move
                   const fromPort = bestPort(fromNode, toNode);
                   const toPort = bestPort(toNode, fromNode);
                   const from = getPortPos(fromNode, fromPort);
@@ -564,30 +580,42 @@ function FlowchartCanvas({
 
                   const midX = (from.x + to.x) / 2;
                   const midY = (from.y + to.y) / 2;
+                  const isSelected = selectedEdge && selectedEdge.from === edge.from && selectedEdge.to === edge.to;
 
                   return (
                     <g key={i}>
-                      <path d={path} fill="none" stroke="var(--border-color)" strokeWidth="2" markerEnd="url(#arrowhead)" />
+                      <path d={path} fill="none" stroke={isSelected ? 'var(--accent-gold)' : 'var(--border-color)'} strokeWidth={isSelected ? 3 : 2} markerEnd="url(#arrowhead)" />
                       <path
                         d={path}
                         fill="none"
                         stroke="transparent"
-                        strokeWidth="12"
+                        strokeWidth="16"
                         style={{ cursor: 'pointer' }}
-                        onClick={(e) => { e.stopPropagation(); deleteEdge(edge.from, edge.to); }}
-                        title="Click to delete connection"
+                        onClick={(e) => { e.stopPropagation(); setSelectedEdge({ from: edge.from, to: edge.to }); setSelectedNodeId(null); }}
+                        title="Click to edit label"
                       />
                       {edge.label && (
-                        <text
-                          x={midX}
-                          y={midY - 8}
-                          textAnchor="middle"
-                          fill="var(--accent-gold)"
-                          fontSize="11"
-                          fontWeight="600"
-                        >
-                          {edge.label}
-                        </text>
+                        <g>
+                          <rect
+                            x={midX - edge.label.length * 3.5 - 6}
+                            y={midY - 18}
+                            width={edge.label.length * 7 + 12}
+                            height={20}
+                            rx="4"
+                            fill="var(--bg-secondary)"
+                            opacity="0.9"
+                          />
+                          <text
+                            x={midX}
+                            y={midY - 5}
+                            textAnchor="middle"
+                            fill="var(--accent-gold)"
+                            fontSize="12"
+                            fontWeight="600"
+                          >
+                            {edge.label}
+                          </text>
+                        </g>
                       )}
                     </g>
                   );
@@ -772,6 +800,46 @@ function FlowchartCanvas({
             </div>
           </div>
         )}
+
+        {/* Edge Editor Panel */}
+        {selectedEdge && (() => {
+          const edge = edges.find(e => e.from === selectedEdge.from && e.to === selectedEdge.to);
+          if (!edge) return null;
+          const fromNode = nodes.find(n => n.id === edge.from);
+          const toNode = nodes.find(n => n.id === edge.to);
+          return (
+            <div className="fc-node-editor">
+              <h4 style={{ color: 'var(--accent-gold)', margin: '0 0 0.75rem 0' }}>Edit Arrow</h4>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                {fromNode?.text || 'Empty'} → {toNode?.text || 'Empty'}
+              </div>
+              <div style={{ marginBottom: '0.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Label</label>
+                <input
+                  type="text"
+                  value={edge.label || ''}
+                  onChange={(e) => {
+                    setEdges(prev => prev.map(ed =>
+                      (ed.from === edge.from && ed.to === edge.to) ? { ...ed, label: e.target.value } : ed
+                    ));
+                  }}
+                  placeholder="e.g. Yes, No, If banned..."
+                  autoFocus
+                  style={{
+                    width: '100%', padding: '0.4rem', borderRadius: '4px',
+                    border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+              <button
+                className="btn btn-danger btn-small"
+                onClick={() => { deleteEdge(edge.from, edge.to); setSelectedEdge(null); }}
+              >
+                Delete Arrow
+              </button>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
