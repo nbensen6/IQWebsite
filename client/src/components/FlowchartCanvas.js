@@ -183,6 +183,13 @@ function FlowchartCanvas({
   // eslint-disable-next-line no-unused-vars
   const [champDragging, setChampDragging] = useState(null);
 
+  // Right-click champion context menu
+  const [contextMenu, setContextMenu] = useState(null); // { nodeId, x, y }
+  const [contextSearch, setContextSearch] = useState('');
+
+  // Save feedback
+  const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'saved', 'error'
+
   const canvasRef = useRef(null);
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
@@ -212,14 +219,19 @@ function FlowchartCanvas({
 
   const handleSave = async () => {
     if (!fcName.trim()) return;
+    setSaveStatus('saving');
     const payload = {
       name: fcName,
       data: { nodes, edges }
     };
     const savedFc = await onSave(selectedFcId, payload);
-    // Update selectedFcId so subsequent saves update instead of creating duplicates
     if (savedFc && savedFc.id) {
       setSelectedFcId(savedFc.id);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(''), 3000);
+    } else {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus(''), 3000);
     }
   };
 
@@ -447,6 +459,29 @@ function FlowchartCanvas({
     e.dataTransfer.dropEffect = 'copy';
   };
 
+  // Right-click context menu for adding champions
+  const handleNodeContextMenu = (e, nodeId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ nodeId, x: e.clientX, y: e.clientY });
+    setContextSearch('');
+  };
+
+  const handleContextChampSelect = (champId) => {
+    if (!contextMenu) return;
+    setNodes(prev => prev.map(n => {
+      if (n.id !== contextMenu.nodeId) return n;
+      const ids = n.championIds || [];
+      return ids.includes(champId) ? n : { ...n, championIds: [...ids, champId] };
+    }));
+    setContextMenu(null);
+    setContextSearch('');
+  };
+
+  const filteredContextChampions = champions.filter(c =>
+    !contextSearch || c.name.toLowerCase().includes(contextSearch.toLowerCase())
+  );
+
   // Node editing
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -550,10 +585,16 @@ function FlowchartCanvas({
             <button
               className="btn btn-primary btn-small"
               onClick={handleSave}
-              disabled={!fcName.trim()}
+              disabled={!fcName.trim() || saveStatus === 'saving'}
             >
-              Save
+              {saveStatus === 'saving' ? 'Saving...' : 'Save'}
             </button>
+            {saveStatus === 'saved' && (
+              <span className="fc-save-feedback success">Saved!</span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="fc-save-feedback error">Save failed</span>
+            )}
             <button className="btn btn-secondary btn-small" onClick={onClose}>
               Close
             </button>
@@ -665,6 +706,7 @@ function FlowchartCanvas({
                     minHeight: node.height || 80
                   }}
                   onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                  onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
                   onDrop={(e) => handleNodeDrop(e, node.id)}
                   onDragOver={handleNodeDragOver}
                 >
@@ -818,6 +860,41 @@ function FlowchartCanvas({
               )}
             </div>
           </div>
+        )}
+
+        {/* Right-click champion context menu */}
+        {contextMenu && (
+          <>
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 99 }}
+              onClick={() => setContextMenu(null)}
+              onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}
+            />
+            <div
+              className="fc-context-menu"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+            >
+              <h4>Add Champion</h4>
+              <input
+                type="text"
+                value={contextSearch}
+                onChange={(e) => setContextSearch(e.target.value)}
+                placeholder="Search champion..."
+                autoFocus
+              />
+              <div className="fc-context-grid">
+                {filteredContextChampions.slice(0, 40).map(c => (
+                  <img
+                    key={c.id}
+                    src={c.image}
+                    alt={c.name}
+                    title={c.name}
+                    onClick={() => handleContextChampSelect(c.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
         )}
 
         {/* Edge Editor Panel */}

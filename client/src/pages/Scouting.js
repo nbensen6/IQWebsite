@@ -278,11 +278,11 @@ function Scouting() {
     try {
       if (fcId) {
         const response = await api.put(`/scouting/flowcharts/${fcId}`, payload);
-        setTeamFlowcharts(teamFlowcharts.map(f => f.id === fcId ? response.data : f));
+        setTeamFlowcharts(prev => prev.map(f => f.id === fcId ? response.data : f));
         return response.data;
       } else {
         const response = await api.post(`/scouting/teams/${selectedTeam.id}/flowcharts`, payload);
-        setTeamFlowcharts([response.data, ...teamFlowcharts]);
+        setTeamFlowcharts(prev => [response.data, ...prev]);
         return response.data;
       }
     } catch (err) {
