@@ -2548,6 +2548,12 @@ tr:hover {
   color: var(--text-secondary);
 }
 
+.fc-canvas-wrapper {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
 .fc-canvas-area {
   flex: 1;
   overflow: hidden;
@@ -2689,11 +2695,69 @@ tr:hover {
   transform: translateY(-50%) scale(1.3);
 }
 
+/* Champion sidebar (right) */
+.fc-champ-sidebar {
+  width: 180px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fc-champ-search {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.fc-champ-search:focus {
+  outline: none;
+  border-color: var(--accent-gold);
+}
+
+.fc-champ-grid {
+  flex: 1;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  align-content: start;
+}
+
+.fc-champ-item {
+  cursor: grab;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+.fc-champ-item:hover {
+  border-color: var(--accent-gold);
+}
+
+.fc-champ-item:active {
+  cursor: grabbing;
+}
+
+.fc-champ-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
 /* Node Editor Panel */
 .fc-node-editor {
   position: absolute;
   bottom: 1rem;
-  right: 1rem;
+  right: 196px;
   width: 280px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -2715,6 +2779,21 @@ tr:hover {
     max-height: 120px;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
+  }
+
+  .fc-canvas-wrapper {
+    flex-direction: column;
+  }
+
+  .fc-champ-sidebar {
+    width: 100%;
+    max-height: 100px;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .fc-champ-grid {
+    grid-template-columns: repeat(6, 1fr);
   }
 
   .fc-node-editor {
