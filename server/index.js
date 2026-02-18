@@ -49,8 +49,23 @@ if (process.env.NODE_ENV === 'production') {
   // Serve videos from persistent volume (/data/videos)
   app.use('/videos', express.static('/data/videos'));
 
-  app.use(express.static(servePath));
+  // Hashed static assets (js/css) — cache forever
+  app.use('/static', express.static(path.join(servePath, 'static'), {
+    maxAge: '1y',
+    immutable: true
+  }));
+
+  // Other static files (favicon, manifest, etc)
+  app.use(express.static(servePath, {
+    index: false, // Don't serve index.html from here
+    maxAge: '1h'
+  }));
+
+  // index.html — never cache so new deploys are picked up immediately
   app.get('*', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(path.join(servePath, 'index.html'));
   });
 }
