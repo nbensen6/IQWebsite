@@ -218,20 +218,30 @@ function FlowchartCanvas({
   };
 
   const handleSave = async () => {
-    if (!fcName.trim()) return;
+    if (!fcName.trim()) {
+      setSaveStatus('noname');
+      setTimeout(() => setSaveStatus(''), 4000);
+      return;
+    }
     setSaveStatus('saving');
-    const payload = {
-      name: fcName,
-      data: { nodes, edges }
-    };
-    const savedFc = await onSave(selectedFcId, payload);
-    if (savedFc && savedFc.id) {
-      setSelectedFcId(savedFc.id);
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus(''), 3000);
-    } else {
+    try {
+      const payload = {
+        name: fcName,
+        data: { nodes, edges }
+      };
+      const savedFc = await onSave(selectedFcId, payload);
+      if (savedFc && savedFc.id) {
+        setSelectedFcId(savedFc.id);
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus(''), 4000);
+      } else {
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus(''), 5000);
+      }
+    } catch (err) {
+      console.error('Flowchart save error:', err);
       setSaveStatus('error');
-      setTimeout(() => setSaveStatus(''), 3000);
+      setTimeout(() => setSaveStatus(''), 5000);
     }
   };
 
@@ -550,12 +560,14 @@ function FlowchartCanvas({
         {/* Top Toolbar */}
         <div className="fc-toolbar">
           <div className="fc-toolbar-left">
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginRight: '-0.25rem' }}>Name:</label>
             <input
               type="text"
               value={fcName}
               onChange={(e) => setFcName(e.target.value)}
-              placeholder="Flowchart name..."
+              placeholder="Enter flowchart name..."
               className="fc-name-input"
+              style={!fcName.trim() ? { borderColor: 'var(--warning)' } : {}}
             />
             <div className="fc-palette">
               {NODE_TYPES.map(type => (
@@ -585,15 +597,18 @@ function FlowchartCanvas({
             <button
               className="btn btn-primary btn-small"
               onClick={handleSave}
-              disabled={!fcName.trim() || saveStatus === 'saving'}
+              disabled={saveStatus === 'saving'}
             >
               {saveStatus === 'saving' ? 'Saving...' : 'Save'}
             </button>
             {saveStatus === 'saved' && (
-              <span className="fc-save-feedback success">Saved!</span>
+              <span className="fc-save-feedback success">Saved successfully!</span>
             )}
             {saveStatus === 'error' && (
-              <span className="fc-save-feedback error">Save failed</span>
+              <span className="fc-save-feedback error">Failed to save - check console</span>
+            )}
+            {saveStatus === 'noname' && (
+              <span className="fc-save-feedback error">Enter a name first</span>
             )}
             <button className="btn btn-secondary btn-small" onClick={onClose}>
               Close

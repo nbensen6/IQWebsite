@@ -286,7 +286,8 @@ function Scouting() {
         return response.data;
       }
     } catch (err) {
-      setError('Failed to save flowchart');
+      console.error('Flowchart save error:', err?.response?.data || err.message || err);
+      setError('Failed to save flowchart: ' + (err?.response?.data?.error || err.message));
       return null;
     }
   };
