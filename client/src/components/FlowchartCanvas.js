@@ -37,29 +37,43 @@ function autoLayout(nodes, edges) {
   nodes.forEach(n => { nodeMap[n.id] = { ...n }; });
 
   Object.entries(levels).forEach(([level, ids]) => {
-    const y = 80 + parseInt(level) * 150;
-    const totalWidth = ids.length * 200;
+    const y = 80 + parseInt(level) * 160;
+    const totalWidth = ids.length * 260;
     const startX = Math.max(100, 400 - totalWidth / 2);
     ids.forEach((id, i) => {
-      if (nodeMap[id].x === undefined) nodeMap[id].x = startX + i * 200;
+      if (nodeMap[id].x === undefined) nodeMap[id].x = startX + i * 260;
       if (nodeMap[id].y === undefined) nodeMap[id].y = y;
     });
   });
 
   nodes.forEach((n, i) => {
     if (nodeMap[n.id].x === undefined) {
-      nodeMap[n.id].x = 100 + (i % 4) * 200;
-      nodeMap[n.id].y = 80 + Math.floor(i / 4) * 150;
+      nodeMap[n.id].x = 100 + (i % 4) * 260;
+      nodeMap[n.id].y = 80 + Math.floor(i / 4) * 160;
     }
   });
 
   return Object.values(nodeMap);
 }
 
+// Migrate old championId → championIds array
+function migrateNode(n) {
+  const node = { ...n };
+  if (node.championId && !node.championIds) {
+    node.championIds = [node.championId];
+    delete node.championId;
+  }
+  if (!node.championIds) node.championIds = [];
+  // Upgrade old smaller sizes to new defaults
+  if (!node.width || node.width <= 160) node.width = 220;
+  if (!node.height || node.height <= 60) node.height = 80;
+  return node;
+}
+
 // Get port position on a node
 function getPortPos(node, port) {
-  const w = node.width || 160;
-  const h = node.height || 60;
+  const w = node.width || 220;
+  const h = node.height || 80;
   switch (port) {
     case 'top':    return { x: node.x + w / 2, y: node.y };
     case 'bottom': return { x: node.x + w / 2, y: node.y + h };
@@ -89,10 +103,10 @@ function bezierPath(fromPos, toPos, fromPort, toPort) {
 
 // Determine the best port on `node` that faces toward `otherNode`
 function bestPort(node, otherNode) {
-  const nw = node.width || 160;
-  const nh = node.height || 60;
-  const ow = otherNode.width || 160;
-  const oh = otherNode.height || 60;
+  const nw = node.width || 220;
+  const nh = node.height || 80;
+  const ow = otherNode.width || 220;
+  const oh = otherNode.height || 80;
   const ncx = node.x + nw / 2;
   const ncy = node.y + nh / 2;
   const ocx = otherNode.x + ow / 2;
@@ -126,10 +140,10 @@ function FlowchartCanvas({
   const [nodes, setNodes] = useState(() => {
     if (initialFlowchart) {
       const data = typeof initialFlowchart.data === 'string' ? JSON.parse(initialFlowchart.data) : initialFlowchart.data;
-      return autoLayout(data.nodes || [], data.edges || []);
+      return autoLayout(data.nodes || [], data.edges || []).map(migrateNode);
     }
     const startId = generateId();
-    return [{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 160, height: 60 }];
+    return [{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 220, height: 80, championIds: [] }];
   });
   const [edges, setEdges] = useState(() => {
     if (initialFlowchart) {
@@ -163,7 +177,7 @@ function FlowchartCanvas({
     const data = typeof fc.data === 'string' ? JSON.parse(fc.data) : fc.data;
     setSelectedFcId(fc.id);
     setFcName(fc.name);
-    setNodes(autoLayout(data.nodes || [], data.edges || []));
+    setNodes(autoLayout(data.nodes || [], data.edges || []).map(migrateNode));
     setEdges(data.edges || []);
     setSelectedNodeId(null);
   }, []);
@@ -172,7 +186,7 @@ function FlowchartCanvas({
     const startId = generateId();
     setSelectedFcId(null);
     setFcName('');
-    setNodes([{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 160, height: 60 }]);
+    setNodes([{ id: startId, type: 'start', text: 'Start', x: 350, y: 80, width: 220, height: 80, championIds: [] }]);
     setEdges([]);
     setSelectedNodeId(null);
   };
@@ -250,8 +264,8 @@ function FlowchartCanvas({
       const currentNodes = nodesRef.current;
       const targetNode = currentNodes.find(n => {
         if (n.id === drawingEdge.fromNodeId) return false;
-        const w = n.width || 160;
-        const h = n.height || 60;
+        const w = n.width || 220;
+        const h = n.height || 80;
         return point.x >= n.x - 15 && point.x <= n.x + w + 15 &&
                point.y >= n.y - 15 && point.y <= n.y + h + 15;
       });
@@ -315,21 +329,25 @@ function FlowchartCanvas({
       const point = getCanvasPoint(e);
       const newId = generateId();
       setNodes(prev => [...prev, {
-        id: newId, type: nodeType, text: '', x: point.x - 80, y: point.y - 30,
-        width: 160, height: 60
+        id: newId, type: nodeType, text: '', x: point.x - 110, y: point.y - 40,
+        width: 220, height: 80, championIds: []
       }]);
       setSelectedNodeId(newId);
     } else if (champId) {
       // Dropping a champion onto the canvas — find if over a node
       const point = getCanvasPoint(e);
       const targetNode = nodes.find(n => {
-        const w = n.width || 160;
-        const h = n.height || 60;
+        const w = n.width || 220;
+        const h = n.height || 80;
         return point.x >= n.x && point.x <= n.x + w &&
                point.y >= n.y && point.y <= n.y + h;
       });
       if (targetNode) {
-        setNodes(prev => prev.map(n => n.id === targetNode.id ? { ...n, championId: champId } : n));
+        setNodes(prev => prev.map(n => {
+          if (n.id !== targetNode.id) return n;
+          const ids = n.championIds || [];
+          return ids.includes(champId) ? n : { ...n, championIds: [...ids, champId] };
+        }));
         setSelectedNodeId(targetNode.id);
       }
     }
@@ -346,7 +364,11 @@ function FlowchartCanvas({
     e.stopPropagation();
     const champId = e.dataTransfer.getData('championId');
     if (champId) {
-      setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, championId: champId } : n));
+      setNodes(prev => prev.map(n => {
+        if (n.id !== nodeId) return n;
+        const ids = n.championIds || [];
+        return ids.includes(champId) ? n : { ...n, championIds: [...ids, champId] };
+      }));
       setSelectedNodeId(nodeId);
     }
   };
@@ -386,8 +408,8 @@ function FlowchartCanvas({
   };
 
   // Compute SVG bounds
-  const svgWidth = Math.max(2000, ...nodes.map(n => (n.x || 0) + (n.width || 160) + 200));
-  const svgHeight = Math.max(2000, ...nodes.map(n => (n.y || 0) + (n.height || 60) + 200));
+  const svgWidth = Math.max(2000, ...nodes.map(n => (n.x || 0) + (n.width || 220) + 200));
+  const svgHeight = Math.max(2000, ...nodes.map(n => (n.y || 0) + (n.height || 80) + 200));
 
   return (
     <div className="fc-canvas-overlay">
@@ -552,19 +574,24 @@ function FlowchartCanvas({
                   style={{
                     left: node.x,
                     top: node.y,
-                    width: node.width || 160,
-                    minHeight: node.height || 60
+                    width: node.width || 220,
+                    minHeight: node.height || 80
                   }}
                   onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                   onDrop={(e) => handleNodeDrop(e, node.id)}
                   onDragOver={handleNodeDragOver}
                 >
-                  {node.championId && (
-                    <img
-                      className="fc-shape-champion"
-                      src={getChampionImage(node.championId)}
-                      alt={node.championId}
-                    />
+                  {node.championIds && node.championIds.length > 0 && (
+                    <div className="fc-shape-champions">
+                      {node.championIds.map(cid => (
+                        <img
+                          key={cid}
+                          className="fc-shape-champion"
+                          src={getChampionImage(cid)}
+                          alt={cid}
+                        />
+                      ))}
+                    </div>
                   )}
                   <span className="fc-shape-text">{node.text || 'Empty'}</span>
 
@@ -676,21 +703,23 @@ function FlowchartCanvas({
               );
             })}
 
-            {/* Champion on this node */}
-            {selectedNode.championId && (
+            {/* Champions on this node */}
+            {selectedNode.championIds && selectedNode.championIds.length > 0 && (
               <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Champion</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <img src={getChampionImage(selectedNode.championId)} alt="" style={{ width: 24, height: 24, borderRadius: 4 }} />
-                  <span style={{ fontSize: '0.85rem', flex: 1 }}>{selectedNode.championId}</span>
-                  <button
-                    className="btn btn-secondary btn-small"
-                    style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
-                    onClick={() => updateNodeField('championId', null)}
-                  >
-                    ×
-                  </button>
-                </div>
+                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Champions</label>
+                {selectedNode.championIds.map(cid => (
+                  <div key={cid} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <img src={getChampionImage(cid)} alt="" style={{ width: 24, height: 24, borderRadius: 4 }} />
+                    <span style={{ fontSize: '0.85rem', flex: 1 }}>{cid}</span>
+                    <button
+                      className="btn btn-secondary btn-small"
+                      style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
+                      onClick={() => updateNodeField('championIds', selectedNode.championIds.filter(id => id !== cid))}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 

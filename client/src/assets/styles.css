@@ -2589,16 +2589,17 @@ tr:hover {
 
 .fc-canvas-shape {
   position: absolute;
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.75rem;
   border-radius: 8px;
   border: 2px solid var(--border-color);
   background: var(--bg-tertiary);
   cursor: move;
   z-index: 2;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   text-align: center;
   font-size: 0.85rem;
   line-height: 1.3;
@@ -2649,9 +2650,17 @@ tr:hover {
 }
 
 .fc-shape-text {
-  max-width: 120px;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.fc-shape-champions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .fc-shape-champion {
