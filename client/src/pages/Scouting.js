@@ -279,12 +279,15 @@ function Scouting() {
       if (fcId) {
         const response = await api.put(`/scouting/flowcharts/${fcId}`, payload);
         setTeamFlowcharts(teamFlowcharts.map(f => f.id === fcId ? response.data : f));
+        return response.data;
       } else {
         const response = await api.post(`/scouting/teams/${selectedTeam.id}/flowcharts`, payload);
         setTeamFlowcharts([response.data, ...teamFlowcharts]);
+        return response.data;
       }
     } catch (err) {
       setError('Failed to save flowchart');
+      return null;
     }
   };
 

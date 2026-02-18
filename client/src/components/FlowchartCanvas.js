@@ -186,6 +186,8 @@ function FlowchartCanvas({
   const canvasRef = useRef(null);
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
+  const edgesRef = useRef(edges);
+  edgesRef.current = edges;
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
 
@@ -214,7 +216,11 @@ function FlowchartCanvas({
       name: fcName,
       data: { nodes, edges }
     };
-    await onSave(selectedFcId, payload);
+    const savedFc = await onSave(selectedFcId, payload);
+    // Update selectedFcId so subsequent saves update instead of creating duplicates
+    if (savedFc && savedFc.id) {
+      setSelectedFcId(savedFc.id);
+    }
   };
 
   // ---- Canvas mouse handlers ----
@@ -280,27 +286,40 @@ function FlowchartCanvas({
     if (drawingEdge) {
       const point = getCanvasPoint(e);
       const currentNodes = nodesRef.current;
-      const targetNode = currentNodes.find(n => {
-        if (n.id === drawingEdge.fromNodeId) return false;
+      const currentEdges = edgesRef.current;
+      // Find closest node to drop point within generous hit area
+      let bestTarget = null;
+      let bestDist = Infinity;
+      for (const n of currentNodes) {
+        if (n.id === drawingEdge.fromNodeId) continue;
         const w = n.width || 220;
         const h = n.height || 80;
-        return point.x >= n.x - 15 && point.x <= n.x + w + 15 &&
-               point.y >= n.y - 15 && point.y <= n.y + h + 15;
-      });
+        const cx = n.x + w / 2;
+        const cy = n.y + h / 2;
+        // Check if point is within padded bounding box
+        if (point.x >= n.x - 25 && point.x <= n.x + w + 25 &&
+            point.y >= n.y - 25 && point.y <= n.y + h + 25) {
+          const dist = Math.hypot(point.x - cx, point.y - cy);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestTarget = n;
+          }
+        }
+      }
 
-      if (targetNode) {
-        const exists = edges.some(e => e.from === drawingEdge.fromNodeId && e.to === targetNode.id);
+      if (bestTarget) {
+        const exists = currentEdges.some(e => e.from === drawingEdge.fromNodeId && e.to === bestTarget.id);
         if (!exists) {
           setEdges(prev => [...prev, {
             from: drawingEdge.fromNodeId,
-            to: targetNode.id,
+            to: bestTarget.id,
             label: ''
           }]);
         }
       }
       setDrawingEdge(null);
     }
-  }, [panning, draggingNodeId, drawingEdge, getCanvasPoint, edges]);
+  }, [panning, draggingNodeId, drawingEdge, getCanvasPoint]);
 
   useEffect(() => {
     const handleMouseUp = (e) => handleCanvasMouseUp(e);

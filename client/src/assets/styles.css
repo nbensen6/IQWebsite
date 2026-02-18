@@ -2594,7 +2594,7 @@ tr:hover {
   color: var(--success);
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   padding: 0.5rem 1.5rem;
-  background: rgba(34, 197, 94, 0.15);
+  background: rgba(34, 197, 94, 0.08);
 }
 
 .fc-pal-note {
@@ -2713,13 +2713,13 @@ tr:hover {
   content: '';
   position: absolute;
   inset: 3px;
-  background: rgba(34, 197, 94, 0.12);
+  background: rgba(34, 197, 94, 0.06);
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   z-index: -1;
 }
 
 .fc-canvas-shape.fc-decision:hover::after {
-  background: rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.1);
 }
 
 .fc-canvas-shape.fc-decision.selected::before {
@@ -2801,7 +2801,7 @@ tr:hover {
 
 /* Champion sidebar (right) */
 .fc-champ-sidebar {
-  width: 180px;
+  width: 240px;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
   padding: 0.75rem;
@@ -2830,7 +2830,7 @@ tr:hover {
   flex: 1;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   align-content: start;
 }
@@ -2861,8 +2861,8 @@ tr:hover {
 .fc-node-editor {
   position: absolute;
   bottom: 1rem;
-  right: 196px;
-  width: 280px;
+  right: 256px;
+  width: 320px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
