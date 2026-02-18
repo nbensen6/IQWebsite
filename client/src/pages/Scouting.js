@@ -776,6 +776,7 @@ function Scouting() {
               <FlowchartCanvas
                 teamId={selectedTeam.id}
                 flowcharts={teamFlowcharts}
+                drafts={teamDrafts}
                 initialFlowchart={editingFlowchart}
                 champions={champions}
                 version={version}

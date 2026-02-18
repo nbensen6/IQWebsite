@@ -61,7 +61,8 @@ const NODE_DEFAULTS = {
   start:    { width: 160, height: 100 },
   action:   { width: 220, height: 80 },
   decision: { width: 180, height: 140 },
-  note:     { width: 220, height: 80 }
+  note:     { width: 220, height: 80 },
+  draft:    { width: 320, height: 160 }
 };
 
 function getNodeSize(type) {
@@ -138,6 +139,7 @@ function bestPort(node, otherNode) {
 function FlowchartCanvas({
   teamId,
   flowcharts,
+  drafts,
   initialFlowchart,
   champions,
   version,
@@ -189,6 +191,9 @@ function FlowchartCanvas({
 
   // Save feedback
   const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'saved', 'error'
+
+  // Insert draft dropdown
+  const [showDraftMenu, setShowDraftMenu] = useState(false);
 
   const canvasRef = useRef(null);
   const nodesRef = useRef(nodes);
@@ -332,9 +337,21 @@ function FlowchartCanvas({
       if (bestTarget) {
         const exists = currentEdges.some(e => e.from === drawingEdge.fromNodeId && e.to === bestTarget.id);
         if (!exists) {
+          // Determine best receiving port on target based on cursor position
+          const tw = bestTarget.width || 220;
+          const th = bestTarget.height || 80;
+          const tcx = bestTarget.x + tw / 2;
+          const tcy = bestTarget.y + th / 2;
+          const tdx = point.x - tcx;
+          const tdy = point.y - tcy;
+          const toPort = Math.abs(tdy) > Math.abs(tdx)
+            ? (tdy > 0 ? 'bottom' : 'top')
+            : (tdx > 0 ? 'right' : 'left');
           setEdges(prev => [...prev, {
             from: drawingEdge.fromNodeId,
             to: bestTarget.id,
+            fromPort: drawingEdge.fromPort,
+            toPort: toPort,
             label: ''
           }]);
         }
@@ -492,6 +509,36 @@ function FlowchartCanvas({
     !contextSearch || c.name.toLowerCase().includes(contextSearch.toLowerCase())
   );
 
+  // Insert a saved draft as a node on the canvas
+  const parsePicks = (str) => {
+    try { return JSON.parse(str).filter(Boolean); } catch { return []; }
+  };
+
+  const handleInsertDraft = (draft) => {
+    setShowDraftMenu(false);
+    const newId = generateId();
+    const sz = getNodeSize('draft');
+    // Place in visible area
+    const x = (-canvasOffset.x / zoom) + 100;
+    const y = (-canvasOffset.y / zoom) + 100;
+    setNodes(prev => [...prev, {
+      id: newId,
+      type: 'draft',
+      text: draft.name,
+      x, y,
+      width: sz.width,
+      height: sz.height,
+      championIds: [],
+      draftData: {
+        bluePicks: parsePicks(draft.blue_picks),
+        redPicks: parsePicks(draft.red_picks),
+        blueBans: parsePicks(draft.blue_bans),
+        redBans: parsePicks(draft.red_bans)
+      }
+    }]);
+    setSelectedNodeId(newId);
+  };
+
   // Node editing
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -585,6 +632,32 @@ function FlowchartCanvas({
                 </div>
               ))}
             </div>
+            {drafts && drafts.length > 0 && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  className="btn btn-secondary btn-small"
+                  onClick={() => setShowDraftMenu(!showDraftMenu)}
+                >
+                  Insert Draft
+                </button>
+                {showDraftMenu && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setShowDraftMenu(false)} />
+                    <div className="fc-draft-dropdown">
+                      {drafts.map(d => (
+                        <div
+                          key={d.id}
+                          className="fc-draft-dropdown-item"
+                          onClick={() => handleInsertDraft(d)}
+                        >
+                          {d.name}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <div className="fc-toolbar-right">
             <div className="fc-zoom-controls">
@@ -647,8 +720,8 @@ function FlowchartCanvas({
                   const toNode = nodes.find(n => n.id === edge.to);
                   if (!fromNode || !toNode) return null;
 
-                  const fromPort = bestPort(fromNode, toNode);
-                  const toPort = bestPort(toNode, fromNode);
+                  const fromPort = edge.fromPort || bestPort(fromNode, toNode);
+                  const toPort = edge.toPort || bestPort(toNode, fromNode);
                   const from = getPortPos(fromNode, fromPort);
                   const to = getPortPos(toNode, toPort);
                   const path = bezierPath(from, to, fromPort, toPort);
@@ -725,19 +798,51 @@ function FlowchartCanvas({
                   onDrop={(e) => handleNodeDrop(e, node.id)}
                   onDragOver={handleNodeDragOver}
                 >
-                  {node.championIds && node.championIds.length > 0 && (
-                    <div className="fc-shape-champions">
-                      {node.championIds.map(cid => (
-                        <img
-                          key={cid}
-                          className="fc-shape-champion"
-                          src={getChampionImage(cid)}
-                          alt={cid}
-                        />
-                      ))}
+                  {node.type === 'draft' && node.draftData ? (
+                    <div className="fc-draft-node-content">
+                      <div className="fc-draft-node-title">{node.text || 'Draft'}</div>
+                      <div className="fc-draft-node-row">
+                        <span className="fc-draft-node-label blue">Blue:</span>
+                        {node.draftData.bluePicks.map((cid, i) => (
+                          <img key={`bp${i}`} className="fc-draft-node-champ" src={getChampionImage(cid)} alt={cid} title={cid} />
+                        ))}
+                      </div>
+                      <div className="fc-draft-node-row">
+                        <span className="fc-draft-node-label red">Red:</span>
+                        {node.draftData.redPicks.map((cid, i) => (
+                          <img key={`rp${i}`} className="fc-draft-node-champ" src={getChampionImage(cid)} alt={cid} title={cid} />
+                        ))}
+                      </div>
+                      {(node.draftData.blueBans.length > 0 || node.draftData.redBans.length > 0) && (
+                        <div className="fc-draft-node-row bans">
+                          <span className="fc-draft-node-label">Bans:</span>
+                          {node.draftData.blueBans.map((cid, i) => (
+                            <img key={`bb${i}`} className="fc-draft-node-champ ban" src={getChampionImage(cid)} alt={cid} title={cid} />
+                          ))}
+                          {node.draftData.redBans.length > 0 && <span style={{ margin: '0 2px', color: 'var(--text-secondary)', fontSize: '0.7rem' }}>|</span>}
+                          {node.draftData.redBans.map((cid, i) => (
+                            <img key={`rb${i}`} className="fc-draft-node-champ ban" src={getChampionImage(cid)} alt={cid} title={cid} />
+                          ))}
+                        </div>
+                      )}
                     </div>
+                  ) : (
+                    <>
+                      {node.championIds && node.championIds.length > 0 && (
+                        <div className="fc-shape-champions">
+                          {node.championIds.map(cid => (
+                            <img
+                              key={cid}
+                              className="fc-shape-champion"
+                              src={getChampionImage(cid)}
+                              alt={cid}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      <span className="fc-shape-text">{node.text || 'Empty'}</span>
+                    </>
                   )}
-                  <span className="fc-shape-text">{node.text || 'Empty'}</span>
 
                   {/* Port dots */}
                   {['top', 'right', 'bottom', 'left'].map(port => (
