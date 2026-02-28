@@ -318,6 +318,109 @@ router.get('/uploads/:filename', (req, res) => {
   }
 });
 
+// ============= ENEMY PLAYERS =============
+
+// Get all players for a team
+router.get('/teams/:teamId/players', authenticateToken, (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const players = db.prepare(`
+      SELECT * FROM enemy_players
+      WHERE team_id = ?
+      ORDER BY CASE role
+        WHEN 'Top' THEN 1 WHEN 'Jungle' THEN 2 WHEN 'Mid' THEN 3
+        WHEN 'ADC' THEN 4 WHEN 'Support' THEN 5 ELSE 6
+      END, created_at ASC
+    `).all(teamId);
+
+    res.json(players);
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    res.status(500).json({ error: 'Failed to fetch players' });
+  }
+});
+
+// Batch insert players for a team (replaces existing)
+router.post('/teams/:teamId/players', authenticateToken, (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { players } = req.body;
+
+    if (!players || !Array.isArray(players)) {
+      return res.status(400).json({ error: 'Players array is required' });
+    }
+
+    // Delete existing players for this team
+    db.prepare('DELETE FROM enemy_players WHERE team_id = ?').run(teamId);
+
+    const insert = db.prepare(`
+      INSERT INTO enemy_players (team_id, game_name, tag_line, region, puuid, role, rank_tier, rank_division, rank_lp, profile_icon_id, top_champions, detected_role, last_fetched)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+
+    const insertMany = db.transaction((players) => {
+      for (const p of players) {
+        insert.run(
+          teamId,
+          p.gameName,
+          p.tagLine,
+          p.region || 'na',
+          p.puuid || null,
+          p.role || p.detectedRole || null,
+          p.rankTier || null,
+          p.rankDivision || null,
+          p.rankLp || null,
+          p.profileIconId || null,
+          p.topChampions ? JSON.stringify(p.topChampions) : null,
+          p.detectedRole || null
+        );
+      }
+    });
+
+    insertMany(players);
+
+    // Update team's updated_at
+    db.prepare('UPDATE enemy_teams SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(teamId);
+
+    const saved = db.prepare('SELECT * FROM enemy_players WHERE team_id = ? ORDER BY id ASC').all(teamId);
+    res.status(201).json(saved);
+  } catch (error) {
+    console.error('Error saving players:', error);
+    res.status(500).json({ error: 'Failed to save players' });
+  }
+});
+
+// Update a player's role
+router.patch('/players/:id/role', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    db.prepare('UPDATE enemy_players SET role = ? WHERE id = ?').run(role, id);
+
+    const updated = db.prepare('SELECT * FROM enemy_players WHERE id = ?').get(id);
+    if (!updated) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating player role:', error);
+    res.status(500).json({ error: 'Failed to update player role' });
+  }
+});
+
+// Delete a player
+router.delete('/players/:id', authenticateToken, (req, res) => {
+  try {
+    const { id } = req.params;
+    db.prepare('DELETE FROM enemy_players WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting player:', error);
+    res.status(500).json({ error: 'Failed to delete player' });
+  }
+});
+
 // ============= SAVED DRAFTS =============
 
 // Get all saved drafts for a team

@@ -143,6 +143,7 @@ function FlowchartCanvas({
   initialFlowchart,
   champions,
   version,
+  enemyPlayers,
   onSave,
   onDelete,
   onClose
@@ -539,6 +540,42 @@ function FlowchartCanvas({
     setSelectedNodeId(newId);
   };
 
+  // Import enemy players as nodes
+  const handleImportPlayers = () => {
+    if (!enemyPlayers || enemyPlayers.length === 0) return;
+
+    const roleOrder = ['Top', 'Jungle', 'Mid', 'ADC', 'Support'];
+    const sorted = [...enemyPlayers].sort((a, b) => {
+      const ai = roleOrder.indexOf(a.role);
+      const bi = roleOrder.indexOf(b.role);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+
+    const startX = (-canvasOffset.x / zoom) + 100;
+    const startY = (-canvasOffset.y / zoom) + 100;
+    const spacing = 120;
+
+    const newNodes = sorted.map((player, i) => {
+      const topChamps = player.top_champions ? JSON.parse(player.top_champions) : [];
+      const champIds = topChamps.map(c => c.championName).filter(Boolean);
+      const roleLabel = player.role || 'Unknown';
+      const sz = getNodeSize('action');
+
+      return {
+        id: generateId(),
+        type: 'action',
+        text: `${roleLabel}: ${player.game_name}`,
+        x: startX,
+        y: startY + i * spacing,
+        width: sz.width,
+        height: sz.height,
+        championIds: champIds
+      };
+    });
+
+    setNodes(prev => [...prev, ...newNodes]);
+  };
+
   // Node editing
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
@@ -657,6 +694,15 @@ function FlowchartCanvas({
                   </>
                 )}
               </div>
+            )}
+            {enemyPlayers && enemyPlayers.length > 0 && (
+              <button
+                className="btn btn-secondary btn-small"
+                onClick={handleImportPlayers}
+                title="Add enemy player nodes to the canvas"
+              >
+                Import Players
+              </button>
             )}
           </div>
           <div className="fc-toolbar-right">

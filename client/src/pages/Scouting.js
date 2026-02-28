@@ -31,6 +31,12 @@ function Scouting() {
 
   const [modalImage, setModalImage] = useState(null);
 
+  // Players tab state
+  const [teamPlayers, setTeamPlayers] = useState([]);
+  const [opggUrl, setOpggUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+
   // Flowchart canvas state
   const [showFlowchartCanvas, setShowFlowchartCanvas] = useState(false);
   const [editingFlowchart, setEditingFlowchart] = useState(null);
@@ -85,16 +91,18 @@ function Scouting() {
 
   const fetchTeamData = useCallback(async (teamId) => {
     try {
-      const [notesRes, imagesRes, draftsRes, flowchartsRes] = await Promise.all([
+      const [notesRes, imagesRes, draftsRes, flowchartsRes, playersRes] = await Promise.all([
         api.get(`/scouting/teams/${teamId}/notes`),
         api.get(`/scouting/teams/${teamId}/images`),
         api.get(`/scouting/teams/${teamId}/drafts`),
-        api.get(`/scouting/teams/${teamId}/flowcharts`)
+        api.get(`/scouting/teams/${teamId}/flowcharts`),
+        api.get(`/scouting/teams/${teamId}/players`)
       ]);
       setTeamNotes(notesRes.data);
       setTeamImages(imagesRes.data);
       setTeamDrafts(draftsRes.data);
       setTeamFlowcharts(flowchartsRes.data);
+      setTeamPlayers(playersRes.data);
     } catch (err) {
       setError('Failed to load team data');
     }
@@ -263,6 +271,96 @@ function Scouting() {
     }
   };
 
+  // Op.gg import handlers
+  const parseOpggUrl = (url) => {
+    try {
+      const parsed = new URL(url);
+      const pathMatch = parsed.pathname.match(/\/multisearch\/(\w+)/);
+      const region = pathMatch ? pathMatch[1] : 'na';
+      const summoners = parsed.searchParams.get('summoners') || '';
+      const players = summoners.split(',').map(s => {
+        const decoded = decodeURIComponent(s).trim();
+        const hashIdx = decoded.lastIndexOf('#');
+        if (hashIdx === -1) return null;
+        return {
+          gameName: decoded.substring(0, hashIdx),
+          tagLine: decoded.substring(hashIdx + 1)
+        };
+      }).filter(Boolean);
+      return { players, region };
+    } catch {
+      return null;
+    }
+  };
+
+  const handleImportOpgg = async () => {
+    if (!opggUrl.trim()) return;
+    setImportError('');
+
+    const parsed = parseOpggUrl(opggUrl);
+    if (!parsed || parsed.players.length === 0) {
+      setImportError('Invalid op.gg multi-search URL. Expected format: https://www.op.gg/multisearch/na?summoners=Player1%23TAG,...');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      // Step 1: Fetch player data from Riot API
+      const riotRes = await api.post('/riot/import-opgg', {
+        players: parsed.players,
+        region: parsed.region
+      });
+
+      const results = riotRes.data.results.filter(r => !r.error);
+      if (results.length === 0) {
+        setImportError('No players found. Check the URL and try again.');
+        setImporting(false);
+        return;
+      }
+
+      // Step 2: Save players to database
+      const saveRes = await api.post(`/scouting/teams/${selectedTeam.id}/players`, {
+        players: results.map(r => ({
+          gameName: r.gameName,
+          tagLine: r.tagLine,
+          region: parsed.region,
+          puuid: r.puuid,
+          rankTier: r.rankTier,
+          rankDivision: r.rankDivision,
+          rankLp: r.rankLp,
+          profileIconId: r.profileIconId,
+          topChampions: r.topChampions,
+          detectedRole: r.detectedRole
+        }))
+      });
+
+      setTeamPlayers(saveRes.data);
+      setOpggUrl('');
+    } catch (err) {
+      setImportError(err?.response?.data?.error || 'Failed to import players');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleUpdatePlayerRole = async (playerId, role) => {
+    try {
+      const res = await api.patch(`/scouting/players/${playerId}/role`, { role });
+      setTeamPlayers(prev => prev.map(p => p.id === playerId ? res.data : p));
+    } catch (err) {
+      setError('Failed to update role');
+    }
+  };
+
+  const handleDeletePlayer = async (playerId) => {
+    try {
+      await api.delete(`/scouting/players/${playerId}`);
+      setTeamPlayers(prev => prev.filter(p => p.id !== playerId));
+    } catch (err) {
+      setError('Failed to delete player');
+    }
+  };
+
   // Flowchart handlers
   const openNewFlowchart = () => {
     setEditingFlowchart(null);
@@ -421,6 +519,12 @@ function Scouting() {
                 onClick={() => setActiveTab('drafts')}
               >
                 Saved Drafts ({teamDrafts.length})
+              </button>
+              <button
+                className={`team-tab ${activeTab === 'players' ? 'active' : ''}`}
+                onClick={() => setActiveTab('players')}
+              >
+                Players ({teamPlayers.length})
               </button>
               <button
                 className={`team-tab ${activeTab === 'notes' ? 'active' : ''}`}
@@ -620,6 +724,123 @@ function Scouting() {
               </div>
             )}
 
+            {activeTab === 'players' && (
+              <div className="players-tab">
+                <div className="import-section">
+                  <label style={{fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block'}}>
+                    Paste an op.gg multi-search URL to import enemy players
+                  </label>
+                  <div style={{display: 'flex', gap: '0.5rem'}}>
+                    <input
+                      type="text"
+                      value={opggUrl}
+                      onChange={(e) => setOpggUrl(e.target.value)}
+                      placeholder="https://www.op.gg/multisearch/na?summoners=..."
+                      disabled={importing}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid var(--border-color)',
+                        background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)'
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleImportOpgg()}
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleImportOpgg}
+                      disabled={importing || !opggUrl.trim()}
+                    >
+                      {importing ? 'Importing...' : 'Import'}
+                    </button>
+                  </div>
+                  {importError && (
+                    <div className="error" style={{marginTop: '0.5rem'}}>{importError}</div>
+                  )}
+                  {importing && (
+                    <div style={{marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem'}}>
+                      Fetching player data from Riot API... This may take 15-30 seconds.
+                    </div>
+                  )}
+                </div>
+
+                {teamPlayers.length > 0 && (
+                  <div className="enemy-players-grid">
+                    {teamPlayers.map(player => {
+                      const topChamps = player.top_champions ? JSON.parse(player.top_champions) : [];
+                      const rankDisplay = player.rank_tier
+                        ? `${player.rank_tier} ${player.rank_division}${player.rank_lp != null ? ` (${player.rank_lp} LP)` : ''}`
+                        : 'Unranked';
+
+                      return (
+                        <div key={player.id} className="enemy-player-card">
+                          <div className="player-card-header">
+                            <img
+                              className="player-icon"
+                              src={player.profile_icon_id
+                                ? `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${player.profile_icon_id}.png`
+                                : `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/29.png`}
+                              alt=""
+                            />
+                            <div className="player-info">
+                              <div className="player-name">{player.game_name}<span className="player-tag">#{player.tag_line}</span></div>
+                              <div className="player-rank">{rankDisplay}</div>
+                            </div>
+                            <button
+                              className="btn btn-danger btn-small"
+                              onClick={() => handleDeletePlayer(player.id)}
+                              style={{padding: '0.2rem 0.5rem', fontSize: '0.7rem', alignSelf: 'flex-start'}}
+                            >
+                              X
+                            </button>
+                          </div>
+
+                          <div className="player-card-body">
+                            <div className="player-role-row">
+                              <label style={{fontSize: '0.8rem', color: 'var(--text-secondary)'}}>Role:</label>
+                              <select
+                                className="role-select"
+                                value={player.role || ''}
+                                onChange={(e) => handleUpdatePlayerRole(player.id, e.target.value)}
+                              >
+                                <option value="">Unassigned</option>
+                                <option value="Top">Top</option>
+                                <option value="Jungle">Jungle</option>
+                                <option value="Mid">Mid</option>
+                                <option value="ADC">ADC</option>
+                                <option value="Support">Support</option>
+                              </select>
+                            </div>
+
+                            {topChamps.length > 0 && (
+                              <div className="player-champs">
+                                {topChamps.map((c, i) => (
+                                  <div key={i} className="player-champ" title={`${c.championName} - ${c.games}G ${c.winRate}% WR`}>
+                                    <img
+                                      src={`https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${c.championName}.png`}
+                                      alt={c.championName}
+                                    />
+                                    <span className="champ-stat">{c.games}G {c.winRate}%</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {teamPlayers.length === 0 && !importing && (
+                  <p style={{color: 'var(--text-secondary)', marginTop: '1rem'}}>
+                    No players imported yet. Paste an op.gg multi-search URL above to get started.
+                  </p>
+                )}
+              </div>
+            )}
+
             {activeTab === 'notes' && (
               <div className="notes-tab">
                 <div style={{marginBottom: '1rem'}}>
@@ -780,6 +1001,7 @@ function Scouting() {
                 initialFlowchart={editingFlowchart}
                 champions={champions}
                 version={version}
+                enemyPlayers={teamPlayers}
                 onSave={handleSaveFlowchart}
                 onDelete={handleDeleteFlowchart}
                 onClose={() => {

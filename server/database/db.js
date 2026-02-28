@@ -115,6 +115,26 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
+  -- Enemy players for scouting (imported from op.gg)
+  CREATE TABLE IF NOT EXISTS enemy_players (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    team_id INTEGER NOT NULL,
+    game_name TEXT NOT NULL,
+    tag_line TEXT NOT NULL,
+    region TEXT DEFAULT 'na',
+    puuid TEXT,
+    role TEXT,
+    rank_tier TEXT,
+    rank_division TEXT,
+    rank_lp INTEGER,
+    profile_icon_id INTEGER,
+    top_champions TEXT,
+    detected_role TEXT,
+    last_fetched DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (team_id) REFERENCES enemy_teams(id) ON DELETE CASCADE
+  );
+
   -- Saved drafts linked to enemy teams
   CREATE TABLE IF NOT EXISTS saved_drafts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
