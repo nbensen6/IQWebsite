@@ -497,46 +497,37 @@ function Scouting() {
             teams.map(team => (
               <div
                 key={team.id}
-                className={`team-item ${selectedTeam?.id === team.id ? 'active' : ''}`}
+                className={`team-item ${selectedTeam?.id === team.id ? 'active' : ''} ${team.logo_filename ? 'has-logo' : ''}`}
                 onClick={() => handleSelectTeam(team)}
               >
-                <div
-                  className="team-logo-wrapper"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelectTeam(team);
-                    const input = document.getElementById(`logo-upload-${team.id}`);
-                    if (input) input.click();
-                  }}
-                  title="Click to upload logo"
-                >
-                  <input
-                    type="file"
-                    id={`logo-upload-${team.id}`}
-                    accept="image/*"
-                    style={{display: 'none'}}
-                    onChange={(e) => handleLogoUpload(team.id, e)}
+                <input
+                  type="file"
+                  id={`logo-upload-${team.id}`}
+                  accept="image/*"
+                  style={{display: 'none'}}
+                  onChange={(e) => handleLogoUpload(team.id, e)}
+                />
+                {team.logo_filename ? (
+                  <img
+                    className="team-logo-full"
+                    src={`/api/scouting/uploads/${team.logo_filename}`}
+                    alt={team.name}
+                    title={team.name}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectTeam(team);
+                      document.getElementById(`logo-upload-${team.id}`).click();
+                    }}
                   />
-                  {team.logo_filename ? (
-                    <img
-                      className="team-logo"
-                      src={`/api/scouting/uploads/${team.logo_filename}`}
-                      alt=""
-                    />
-                  ) : (
-                    <div className="team-logo-placeholder" />
-                  )}
-                </div>
-                <div style={{flex: 1, minWidth: 0}}>
+                ) : (
                   <div className="team-name">{team.name}</div>
-                </div>
+                )}
                 <button
-                  className="btn btn-danger btn-small"
+                  className="btn btn-danger btn-small team-delete-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteTeam(team.id);
                   }}
-                  style={{padding: '0.25rem 0.5rem', fontSize: '0.75rem'}}
                 >
                   X
                 </button>
@@ -551,6 +542,14 @@ function Scouting() {
           <>
             <div className="team-header">
               <h2>{selectedTeam.name}</h2>
+              {!selectedTeam.logo_filename && (
+                <button
+                  className="btn btn-secondary btn-small"
+                  onClick={() => document.getElementById(`logo-upload-${selectedTeam.id}`)?.click()}
+                >
+                  Set Logo
+                </button>
+              )}
             </div>
 
             <div className="team-tabs">
