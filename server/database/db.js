@@ -296,6 +296,11 @@ db.exec(`
   );
 `);
 
+// Add logo column to enemy_teams
+try {
+  db.exec(`ALTER TABLE enemy_teams ADD COLUMN logo_filename TEXT`);
+} catch (e) {}
+
 console.log('Database initialized successfully');
 
 module.exports = db;

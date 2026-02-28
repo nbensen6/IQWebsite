@@ -130,6 +130,72 @@ router.delete('/teams/:id', authenticateToken, (req, res) => {
   }
 });
 
+// Upload team logo
+router.post('/teams/:teamId/logo', authenticateToken, upload.single('logo'), (req, res) => {
+  try {
+    const { teamId } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    const team = db.prepare('SELECT * FROM enemy_teams WHERE id = ?').get(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    // Delete old logo file if exists
+    if (team.logo_filename) {
+      const uploadDir = process.env.NODE_ENV === 'production'
+        ? '/data/uploads'
+        : path.join(__dirname, '../uploads');
+      const oldPath = path.join(uploadDir, team.logo_filename);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
+    }
+
+    db.prepare('UPDATE enemy_teams SET logo_filename = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(req.file.filename, teamId);
+
+    const updated = db.prepare('SELECT * FROM enemy_teams WHERE id = ?').get(teamId);
+    res.json(updated);
+  } catch (error) {
+    console.error('Error uploading logo:', error);
+    res.status(500).json({ error: 'Failed to upload logo' });
+  }
+});
+
+// Delete team logo
+router.delete('/teams/:teamId/logo', authenticateToken, (req, res) => {
+  try {
+    const { teamId } = req.params;
+
+    const team = db.prepare('SELECT * FROM enemy_teams WHERE id = ?').get(teamId);
+    if (!team) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    if (team.logo_filename) {
+      const uploadDir = process.env.NODE_ENV === 'production'
+        ? '/data/uploads'
+        : path.join(__dirname, '../uploads');
+      const filepath = path.join(uploadDir, team.logo_filename);
+      if (fs.existsSync(filepath)) {
+        fs.unlinkSync(filepath);
+      }
+    }
+
+    db.prepare('UPDATE enemy_teams SET logo_filename = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(teamId);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting logo:', error);
+    res.status(500).json({ error: 'Failed to delete logo' });
+  }
+});
+
 // Get notes for a team
 router.get('/teams/:teamId/notes', authenticateToken, (req, res) => {
   try {

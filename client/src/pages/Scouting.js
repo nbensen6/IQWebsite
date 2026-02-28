@@ -136,6 +136,28 @@ function Scouting() {
     }
   };
 
+  const handleLogoUpload = async (teamId, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const response = await api.post(
+        `/scouting/teams/${teamId}/logo`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setTeams(prev => prev.map(t => t.id === teamId ? { ...t, logo_filename: response.data.logo_filename } : t));
+      if (selectedTeam?.id === teamId) {
+        setSelectedTeam(prev => ({ ...prev, logo_filename: response.data.logo_filename }));
+      }
+    } catch (err) {
+      setError('Failed to upload logo');
+    }
+  };
+
   const handleDeleteTeam = async (teamId) => {
     if (!window.confirm('Delete this team and all its notes/images?')) return;
 
@@ -478,11 +500,35 @@ function Scouting() {
                 className={`team-item ${selectedTeam?.id === team.id ? 'active' : ''}`}
                 onClick={() => handleSelectTeam(team)}
               >
-                <div>
+                <div
+                  className="team-logo-wrapper"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectTeam(team);
+                    const input = document.getElementById(`logo-upload-${team.id}`);
+                    if (input) input.click();
+                  }}
+                  title="Click to upload logo"
+                >
+                  <input
+                    type="file"
+                    id={`logo-upload-${team.id}`}
+                    accept="image/*"
+                    style={{display: 'none'}}
+                    onChange={(e) => handleLogoUpload(team.id, e)}
+                  />
+                  {team.logo_filename ? (
+                    <img
+                      className="team-logo"
+                      src={`/api/scouting/uploads/${team.logo_filename}`}
+                      alt=""
+                    />
+                  ) : (
+                    <div className="team-logo-placeholder" />
+                  )}
+                </div>
+                <div style={{flex: 1, minWidth: 0}}>
                   <div className="team-name">{team.name}</div>
-                  <div className="team-meta">
-                    {team.images_count} images, {team.notes_count} notes
-                  </div>
                 </div>
                 <button
                   className="btn btn-danger btn-small"
@@ -765,6 +811,21 @@ function Scouting() {
                   )}
                 </div>
 
+                {teamPlayers.length > 0 && (() => {
+                  const region = teamPlayers[0]?.region || 'na';
+                  const multiSearchUrl = `https://www.op.gg/multisearch/${region}?summoners=${teamPlayers.map(p => `${encodeURIComponent(p.game_name)}%23${encodeURIComponent(p.tag_line)}`).join(',')}`;
+                  return (
+                    <a
+                      href={multiSearchUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="opgg-team-link"
+                    >
+                      View all on op.gg
+                    </a>
+                  );
+                })()}
+
                 {teamPlayers.length > 0 && (
                   <div className="enemy-players-grid">
                     {teamPlayers.map(player => {
@@ -785,7 +846,19 @@ function Scouting() {
                             />
                             <div className="player-info">
                               <div className="player-name">{player.game_name}<span className="player-tag">#{player.tag_line}</span></div>
-                              <div className="player-rank">{rankDisplay}</div>
+                              <div className="player-rank">
+                                {rankDisplay}
+                                {' '}
+                                <a
+                                  href={`https://www.op.gg/summoners/${player.region || 'na'}/${encodeURIComponent(player.game_name)}-${encodeURIComponent(player.tag_line)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="opgg-link"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  op.gg
+                                </a>
+                              </div>
                             </div>
                             <button
                               className="btn btn-danger btn-small"
