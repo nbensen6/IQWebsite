@@ -513,24 +513,32 @@ function Scouting() {
                     src={`/api/scouting/uploads/${team.logo_filename}`}
                     alt={team.name}
                     title={team.name}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelectTeam(team);
-                      document.getElementById(`logo-upload-${team.id}`).click();
-                    }}
                   />
                 ) : (
                   <div className="team-name">{team.name}</div>
                 )}
-                <button
-                  className="btn btn-danger btn-small team-delete-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteTeam(team.id);
-                  }}
-                >
-                  X
-                </button>
+                <div className="team-item-actions">
+                  <button
+                    className="btn btn-secondary btn-small team-action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      document.getElementById(`logo-upload-${team.id}`).click();
+                    }}
+                    title={team.logo_filename ? 'Change logo' : 'Add logo'}
+                  >
+                    +
+                  </button>
+                  <button
+                    className="btn btn-danger btn-small team-action-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTeam(team.id);
+                    }}
+                    title="Delete team"
+                  >
+                    X
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -542,14 +550,6 @@ function Scouting() {
           <>
             <div className="team-header">
               <h2>{selectedTeam.name}</h2>
-              {!selectedTeam.logo_filename && (
-                <button
-                  className="btn btn-secondary btn-small"
-                  onClick={() => document.getElementById(`logo-upload-${selectedTeam.id}`)?.click()}
-                >
-                  Set Logo
-                </button>
-              )}
             </div>
 
             <div className="team-tabs">

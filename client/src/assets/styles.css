@@ -780,31 +780,37 @@ tr:hover {
 
 .team-logo-full {
   width: 100%;
+  max-height: 80px;
+  object-fit: contain;
   display: block;
-  cursor: pointer;
   border-radius: 4px;
 }
 
-.team-delete-btn {
-  padding: 0.2rem 0.4rem !important;
-  font-size: 0.7rem !important;
-}
-
-.team-item:not(.has-logo) .team-delete-btn {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.team-item.has-logo .team-delete-btn {
+.team-item-actions {
   position: absolute;
   top: 4px;
   right: 4px;
+  display: flex;
+  gap: 2px;
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-.team-item.has-logo:hover .team-delete-btn {
+.team-item:hover .team-item-actions {
   opacity: 1;
+}
+
+.team-action-btn {
+  padding: 0.15rem 0.4rem !important;
+  font-size: 0.7rem !important;
+  line-height: 1 !important;
+}
+
+.team-item:not(.has-logo) .team-item-actions {
+  position: static;
+  opacity: 1;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .team-content {
