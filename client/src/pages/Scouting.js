@@ -31,6 +31,10 @@ function Scouting() {
 
   const [modalImage, setModalImage] = useState(null);
 
+  // Team drag reorder state
+  const [dragTeamId, setDragTeamId] = useState(null);
+  const [dragOverTeamId, setDragOverTeamId] = useState(null);
+
   // Players tab state
   const [teamPlayers, setTeamPlayers] = useState([]);
   const [opggUrl, setOpggUrl] = useState('');
@@ -156,6 +160,47 @@ function Scouting() {
     } catch (err) {
       setError('Failed to upload logo');
     }
+  };
+
+  const handleTeamDragStart = (e, teamId) => {
+    setDragTeamId(teamId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleTeamDragOver = (e, teamId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (teamId !== dragOverTeamId) setDragOverTeamId(teamId);
+  };
+
+  const handleTeamDrop = async (e, targetTeamId) => {
+    e.preventDefault();
+    setDragOverTeamId(null);
+    if (!dragTeamId || dragTeamId === targetTeamId) {
+      setDragTeamId(null);
+      return;
+    }
+
+    const fromIndex = teams.findIndex(t => t.id === dragTeamId);
+    const toIndex = teams.findIndex(t => t.id === targetTeamId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const reordered = [...teams];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    setTeams(reordered);
+    setDragTeamId(null);
+
+    try {
+      await api.put('/scouting/teams/reorder', { order: reordered.map(t => t.id) });
+    } catch (err) {
+      console.error('Failed to save team order');
+    }
+  };
+
+  const handleTeamDragEnd = () => {
+    setDragTeamId(null);
+    setDragOverTeamId(null);
   };
 
   const handleDeleteTeam = async (teamId) => {
@@ -497,8 +542,13 @@ function Scouting() {
             teams.map(team => (
               <div
                 key={team.id}
-                className={`team-item ${selectedTeam?.id === team.id ? 'active' : ''} ${team.logo_filename ? 'has-logo' : ''}`}
+                className={`team-item ${selectedTeam?.id === team.id ? 'active' : ''} ${team.logo_filename ? 'has-logo' : ''} ${dragOverTeamId === team.id ? 'drag-over' : ''}`}
                 onClick={() => handleSelectTeam(team)}
+                draggable
+                onDragStart={(e) => handleTeamDragStart(e, team.id)}
+                onDragOver={(e) => handleTeamDragOver(e, team.id)}
+                onDrop={(e) => handleTeamDrop(e, team.id)}
+                onDragEnd={handleTeamDragEnd}
               >
                 <input
                   type="file"

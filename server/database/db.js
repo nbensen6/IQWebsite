@@ -300,6 +300,9 @@ db.exec(`
 try {
   db.exec(`ALTER TABLE enemy_teams ADD COLUMN logo_filename TEXT`);
 } catch (e) {}
+try {
+  db.exec(`ALTER TABLE enemy_teams ADD COLUMN sort_order INTEGER DEFAULT 0`);
+} catch (e) {}
 
 console.log('Database initialized successfully');
 

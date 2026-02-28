@@ -47,7 +47,7 @@ router.get('/teams', authenticateToken, (req, res) => {
         (SELECT COUNT(*) FROM scouting_notes WHERE team_id = et.id) as notes_count,
         (SELECT COUNT(*) FROM scouting_images WHERE team_id = et.id) as images_count
       FROM enemy_teams et
-      ORDER BY et.updated_at DESC
+      ORDER BY et.sort_order ASC, et.updated_at DESC
     `).all();
 
     res.json(teams);
@@ -76,6 +76,27 @@ router.post('/teams', authenticateToken, (req, res) => {
   } catch (error) {
     console.error('Error creating team:', error);
     res.status(500).json({ error: 'Failed to create team' });
+  }
+});
+
+// Reorder teams (must be before /teams/:id to avoid param match)
+router.put('/teams/reorder', authenticateToken, (req, res) => {
+  try {
+    const { order } = req.body;
+    if (!order || !Array.isArray(order)) {
+      return res.status(400).json({ error: 'Order array is required' });
+    }
+
+    const update = db.prepare('UPDATE enemy_teams SET sort_order = ? WHERE id = ?');
+    const reorder = db.transaction((ids) => {
+      ids.forEach((id, index) => update.run(index, id));
+    });
+    reorder(order);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error reordering teams:', error);
+    res.status(500).json({ error: 'Failed to reorder teams' });
   }
 });
 

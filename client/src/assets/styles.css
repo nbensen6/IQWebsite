@@ -813,6 +813,19 @@ tr:hover {
   flex-shrink: 0;
 }
 
+.team-item[draggable] {
+  cursor: grab;
+}
+
+.team-item[draggable]:active {
+  cursor: grabbing;
+}
+
+.team-item.drag-over {
+  outline: 2px dashed var(--accent-gold);
+  outline-offset: -2px;
+}
+
 .team-content {
   min-height: 500px;
 }
