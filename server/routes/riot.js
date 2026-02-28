@@ -5,21 +5,36 @@ const router = express.Router();
 
 const RIOT_API_KEY = process.env.RIOT_API_KEY;
 
-// Helper to make Riot API requests
-const riotFetch = async (url) => {
-  const response = await fetch(url, {
-    headers: {
-      'X-Riot-Token': RIOT_API_KEY
-    }
-  });
+// Helper to make Riot API requests with rate limit retry
+const riotFetch = async (url, retries = 3) => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const response = await fetch(url, {
+      headers: {
+        'X-Riot-Token': RIOT_API_KEY
+      }
+    });
 
-  if (!response.ok) {
-    const error = new Error(`Riot API error: ${response.status}`);
-    error.status = response.status;
-    throw error;
+    if (response.status === 429) {
+      // Rate limited - wait using Retry-After header or default backoff
+      const retryAfter = parseInt(response.headers.get('Retry-After') || '2', 10);
+      const waitMs = (retryAfter + 1) * 1000;
+      console.log(`Rate limited, waiting ${waitMs}ms (attempt ${attempt + 1}/${retries + 1})`);
+      await new Promise(r => setTimeout(r, waitMs));
+      continue;
+    }
+
+    if (!response.ok) {
+      const error = new Error(`Riot API error: ${response.status}`);
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json();
   }
 
-  return response.json();
+  const error = new Error('Riot API rate limit exceeded after retries');
+  error.status = 429;
+  throw error;
 };
 
 // Get player data by Riot ID (gameName#tagLine)
@@ -154,12 +169,16 @@ router.post('/import-opgg', authenticateToken, async (req, res) => {
     const delay = (ms) => new Promise(r => setTimeout(r, ms));
     const results = [];
 
-    for (const player of players.slice(0, 10)) {
+    for (let pi = 0; pi < Math.min(players.length, 10); pi++) {
+      const player = players[pi];
       const result = {
         gameName: player.gameName,
         tagLine: player.tagLine,
         error: null
       };
+
+      // Add extra delay between players to avoid rate limiting
+      if (pi > 0) await delay(1000);
 
       try {
         // Step 1: Get PUUID
@@ -169,14 +188,14 @@ router.post('/import-opgg', authenticateToken, async (req, res) => {
         result.puuid = accountData.puuid;
         result.gameName = accountData.gameName;
         result.tagLine = accountData.tagLine;
-        await delay(200);
+        await delay(300);
 
         // Step 2: Get summoner data
         const summonerData = await riotFetch(
           `https://${riotRegion}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${accountData.puuid}`
         );
         result.profileIconId = summonerData.profileIconId;
-        await delay(200);
+        await delay(300);
 
         // Step 3: Get ranked data
         try {
@@ -192,7 +211,7 @@ router.post('/import-opgg', authenticateToken, async (req, res) => {
         } catch (e) {
           console.log(`Could not fetch ranked data for ${player.gameName}`);
         }
-        await delay(200);
+        await delay(300);
 
         // Step 4: Get match IDs (ranked solo queue = 420)
         const championStats = {};
@@ -201,7 +220,7 @@ router.post('/import-opgg', authenticateToken, async (req, res) => {
           const matchIds = await riotFetch(
             `https://${routing}.api.riotgames.com/lol/match/v5/matches/by-puuid/${accountData.puuid}/ids?queue=420&count=15`
           );
-          await delay(200);
+          await delay(500);
 
           // Step 5: Fetch match details
           for (const matchId of matchIds.slice(0, 10)) {
@@ -223,7 +242,7 @@ router.post('/import-opgg', authenticateToken, async (req, res) => {
                   roleCounts[role] = (roleCounts[role] || 0) + 1;
                 }
               }
-              await delay(200);
+              await delay(500);
             } catch (e) {
               console.log(`Failed to fetch match ${matchId}`);
             }
