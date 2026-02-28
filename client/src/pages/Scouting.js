@@ -10,7 +10,7 @@ function Scouting() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [activeTab, setActiveTab] = useState('images');
+  const [activeTab, setActiveTab] = useState('players');
   const [teamNotes, setTeamNotes] = useState([]);
   const [teamImages, setTeamImages] = useState([]);
   const [teamDrafts, setTeamDrafts] = useState([]);
@@ -116,7 +116,7 @@ function Scouting() {
 
   const handleSelectTeam = (team) => {
     setSelectedTeam(team);
-    setActiveTab('images');
+    setActiveTab('players');
     setShowNewNote(false);
     setEditingNote(null);
   };
@@ -555,10 +555,16 @@ function Scouting() {
 
             <div className="team-tabs">
               <button
-                className={`team-tab ${activeTab === 'images' ? 'active' : ''}`}
-                onClick={() => setActiveTab('images')}
+                className={`team-tab ${activeTab === 'players' ? 'active' : ''}`}
+                onClick={() => setActiveTab('players')}
               >
-                Draft Images ({teamImages.length})
+                Players ({teamPlayers.length})
+              </button>
+              <button
+                className={`team-tab ${activeTab === 'flowcharts' ? 'active' : ''}`}
+                onClick={() => setActiveTab('flowcharts')}
+              >
+                Flowcharts ({teamFlowcharts.length})
               </button>
               <button
                 className={`team-tab ${activeTab === 'drafts' ? 'active' : ''}`}
@@ -567,22 +573,16 @@ function Scouting() {
                 Saved Drafts ({teamDrafts.length})
               </button>
               <button
-                className={`team-tab ${activeTab === 'players' ? 'active' : ''}`}
-                onClick={() => setActiveTab('players')}
+                className={`team-tab ${activeTab === 'images' ? 'active' : ''}`}
+                onClick={() => setActiveTab('images')}
               >
-                Players ({teamPlayers.length})
+                Draft Images ({teamImages.length})
               </button>
               <button
                 className={`team-tab ${activeTab === 'notes' ? 'active' : ''}`}
                 onClick={() => setActiveTab('notes')}
               >
                 Notes ({teamNotes.length})
-              </button>
-              <button
-                className={`team-tab ${activeTab === 'flowcharts' ? 'active' : ''}`}
-                onClick={() => setActiveTab('flowcharts')}
-              >
-                Flowcharts ({teamFlowcharts.length})
               </button>
             </div>
 
