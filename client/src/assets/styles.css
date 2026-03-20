@@ -3356,3 +3356,13 @@ tr:hover {
 .confirm-dialog-btn-primary:hover {
   background: var(--accent-gold-light);
 }
+
+/* ===== Flowchart Export Mode ===== */
+.fc-exporting .fc-port {
+  display: none !important;
+}
+
+.fc-exporting .fc-canvas-shape.selected {
+  outline: none !important;
+  box-shadow: none !important;
+}

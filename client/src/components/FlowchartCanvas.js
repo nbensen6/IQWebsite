@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import html2canvas from 'html2canvas';
 
 const NODE_TYPES = ['start', 'action', 'decision', 'note'];
 
@@ -401,6 +402,80 @@ function FlowchartCanvas({
   const handleZoomOut = () => setZoom(z => Math.max(0.2, z / 1.2));
   const handleZoomReset = () => { setZoom(1); setCanvasOffset({ x: 0, y: 0 }); };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    const canvasInner = canvasRef.current?.querySelector('.fc-canvas-inner');
+    if (!canvasInner) return;
+    setExporting(true);
+
+    // Calculate tight bounding box around all nodes with padding
+    const pad = 40;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+      const w = n.width || 220;
+      const h = n.height || 80;
+      if (n.x < minX) minX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.x + w > maxX) maxX = n.x + w;
+      if (n.y + h > maxY) maxY = n.y + h;
+    });
+    const cropX = Math.max(0, minX - pad);
+    const cropY = Math.max(0, minY - pad - 40); // extra room for title
+    const cropW = (maxX - minX) + pad * 2;
+    const cropH = (maxY - minY) + pad * 2 + 40;
+
+    try {
+      // Temporarily reset transform for clean capture
+      const prevTransform = canvasInner.style.transform;
+      canvasInner.style.transform = 'translate(0px, 0px) scale(1)';
+
+      // Hide interactive elements during export
+      canvasInner.classList.add('fc-exporting');
+
+      const canvas = await html2canvas(canvasInner, {
+        backgroundColor: '#111111',
+        x: cropX,
+        y: cropY,
+        width: cropW,
+        height: cropH,
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false
+      });
+
+      // Restore transform and classes
+      canvasInner.style.transform = prevTransform;
+      canvasInner.classList.remove('fc-exporting');
+
+      // Draw title + watermark on the captured image
+      const ctx = canvas.getContext('2d');
+      const title = fcName || 'Flowchart';
+      ctx.fillStyle = 'rgba(17, 17, 17, 0.75)';
+      ctx.fillRect(0, 0, canvas.width, 64);
+      ctx.font = 'bold 28px Segoe UI, sans-serif';
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillText(title, 20, 42);
+      // Small watermark
+      ctx.font = '14px Segoe UI, sans-serif';
+      ctx.fillStyle = 'rgba(168, 162, 158, 0.5)';
+      ctx.fillText('IQ Scouting', canvas.width - 110, canvas.height - 12);
+
+      // Download
+      const link = document.createElement('a');
+      link.download = `${(fcName || 'flowchart').replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setExporting(false);
+      // Ensure cleanup in case of error
+      canvasInner.classList.remove('fc-exporting');
+    }
+  };
+
   // Node drag
   const handleNodeMouseDown = (e, nodeId) => {
     e.stopPropagation();
@@ -719,6 +794,14 @@ function FlowchartCanvas({
               disabled={saveStatus === 'saving'}
             >
               {saveStatus === 'saving' ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              className="btn btn-secondary btn-small"
+              onClick={handleExport}
+              disabled={exporting}
+              title="Export as PNG for Discord"
+            >
+              {exporting ? 'Exporting...' : 'Export PNG'}
             </button>
             {saveStatus === 'saved' && (
               <span className="fc-save-feedback success">Saved successfully!</span>
