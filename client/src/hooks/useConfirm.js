@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 export function useConfirm() {
-  const [state, setState] = useState({ open: false, title: '', message: '', variant: 'danger', resolve: null });
+  const [state, setState] = useState({ open: false, title: '', message: '', variant: 'danger' });
+  const resolveRef = useRef(null);
 
   const confirm = useCallback((message, options = {}) => {
     return new Promise((resolve) => {
+      resolveRef.current = resolve;
       setState({
         open: true,
         message,
@@ -12,20 +14,21 @@ export function useConfirm() {
         variant: options.variant || 'danger',
         confirmText: options.confirmText || 'Delete',
         cancelText: options.cancelText || 'Cancel',
-        resolve
       });
     });
   }, []);
 
   const handleConfirm = useCallback(() => {
-    state.resolve?.(true);
+    resolveRef.current?.(true);
+    resolveRef.current = null;
     setState(s => ({ ...s, open: false }));
-  }, [state.resolve]);
+  }, []);
 
   const handleCancel = useCallback(() => {
-    state.resolve?.(false);
+    resolveRef.current?.(false);
+    resolveRef.current = null;
     setState(s => ({ ...s, open: false }));
-  }, [state.resolve]);
+  }, []);
 
   return {
     confirm,
@@ -43,24 +46,26 @@ export function useConfirm() {
 }
 
 export function useAlert() {
-  const [state, setState] = useState({ open: false, title: '', message: '', variant: 'error', resolve: null });
+  const [state, setState] = useState({ open: false, title: '', message: '', variant: 'error' });
+  const resolveRef = useRef(null);
 
   const showAlert = useCallback((message, options = {}) => {
     return new Promise((resolve) => {
+      resolveRef.current = resolve;
       setState({
         open: true,
         message,
         title: options.title || '',
         variant: options.variant || 'error',
-        resolve
       });
     });
   }, []);
 
   const handleClose = useCallback(() => {
-    state.resolve?.();
+    resolveRef.current?.();
+    resolveRef.current = null;
     setState(s => ({ ...s, open: false }));
-  }, [state.resolve]);
+  }, []);
 
   return {
     showAlert,
