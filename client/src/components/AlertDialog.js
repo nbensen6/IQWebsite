@@ -1,32 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
+import ReactDOM from 'react-dom';
 
 function AlertDialog({ open, title, message, buttonText = 'OK', variant = 'error', onClose }) {
-  const dialogRef = useRef(null);
-  const btnRef = useRef(null);
-
-  useEffect(() => {
-    if (open) {
-      dialogRef.current?.showModal();
-      btnRef.current?.focus();
-    } else {
-      dialogRef.current?.close();
-    }
-  }, [open]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleCancel = (e) => {
-      e.preventDefault();
-      onClose();
-    };
-    dialog.addEventListener('cancel', handleCancel);
-    return () => dialog.removeEventListener('cancel', handleCancel);
-  }, [onClose]);
-
-  const handleBackdropClick = (e) => {
-    if (e.target === dialogRef.current) onClose();
-  };
+  if (!open) return null;
 
   const iconMap = {
     error: '⚠️',
@@ -34,20 +10,21 @@ function AlertDialog({ open, title, message, buttonText = 'OK', variant = 'error
     success: '✅'
   };
 
-  return (
-    <dialog ref={dialogRef} className="confirm-dialog-backdrop" onClick={handleBackdropClick}>
-      <div className="confirm-dialog">
+  return ReactDOM.createPortal(
+    <div className="confirm-dialog-backdrop" onClick={onClose}>
+      <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
         <h3 className="confirm-dialog-title">
           {iconMap[variant] || ''} {title || (variant === 'error' ? 'Error' : 'Notice')}
         </h3>
         <p className="confirm-dialog-message">{message}</p>
         <div className="confirm-dialog-actions">
-          <button ref={btnRef} className="confirm-dialog-btn confirm-dialog-btn-primary" onClick={onClose}>
+          <button className="confirm-dialog-btn confirm-dialog-btn-primary" onClick={onClose}>
             {buttonText}
           </button>
         </div>
       </div>
-    </dialog>
+    </div>,
+    document.body
   );
 }
 
