@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import FlowchartCanvas from '../components/FlowchartCanvas';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useConfirm } from '../hooks/useConfirm';
 
 const NOTE_CATEGORIES = ['General', 'Draft Tendencies', 'Playstyle', 'Weaknesses', 'Player Notes'];
 
@@ -9,6 +11,7 @@ function Scouting() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { confirm, confirmDialogProps } = useConfirm();
 
   const [activeTab, setActiveTab] = useState('players');
   const [teamNotes, setTeamNotes] = useState([]);
@@ -204,7 +207,11 @@ function Scouting() {
   };
 
   const handleDeleteTeam = async (teamId) => {
-    if (!window.confirm('Delete this team and all its notes/images?')) return;
+    const confirmed = await confirm('Delete this team and all its notes/images?', {
+      title: 'Delete Team',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/scouting/teams/${teamId}`);
@@ -256,7 +263,11 @@ function Scouting() {
   };
 
   const handleDeleteNote = async (noteId) => {
-    if (!window.confirm('Delete this note?')) return;
+    const confirmed = await confirm('Delete this note?', {
+      title: 'Delete Note',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/scouting/notes/${noteId}`);
@@ -317,7 +328,11 @@ function Scouting() {
   };
 
   const handleDeleteImage = async (imageId) => {
-    if (!window.confirm('Delete this image?')) return;
+    const confirmed = await confirm('Delete this image?', {
+      title: 'Delete Image',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/scouting/images/${imageId}`);
@@ -328,7 +343,11 @@ function Scouting() {
   };
 
   const handleDeleteDraft = async (draftId) => {
-    if (!window.confirm('Delete this saved draft?')) return;
+    const confirmed = await confirm('Delete this saved draft?', {
+      title: 'Delete Draft',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/scouting/drafts/${draftId}`);
@@ -458,7 +477,11 @@ function Scouting() {
   };
 
   const handleDeleteFlowchart = async (flowchartId) => {
-    if (!window.confirm('Delete this flowchart?')) return;
+    const confirmed = await confirm('Delete this flowchart?', {
+      title: 'Delete Flowchart',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/scouting/flowcharts/${flowchartId}`);
@@ -1152,6 +1175,7 @@ function Scouting() {
           />
         </div>
       )}
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

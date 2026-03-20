@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import VideoBackground from '../components/VideoBackground';
+import ConfirmDialog from '../components/ConfirmDialog';
+import AlertDialog from '../components/AlertDialog';
+import { useConfirm, useAlert } from '../hooks/useConfirm';
 
 const ROLE_ICONS = {
   Top: '⚔️',
@@ -36,6 +39,8 @@ function Roster() {
   const [showCompForm, setShowCompForm] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState(null);
   const [opggForm, setOpggForm] = useState({ username: '', region: 'na', iconId: '' });
+  const { confirm, confirmDialogProps } = useConfirm();
+  const { showAlert, alertDialogProps } = useAlert();
 
   // Admin state
   const [users, setUsers] = useState([]);
@@ -220,12 +225,16 @@ function Roster() {
       fetchUsers(); // Refresh users to update player_id linkage
     } catch (err) {
       console.error('Failed to add player');
-      alert(err.response?.data?.error || 'Failed to add player');
+      showAlert(err.response?.data?.error || 'Failed to add player');
     }
   };
 
   const handleDeletePlayer = async (playerId) => {
-    if (!window.confirm('Remove this player from the roster?')) return;
+    const confirmed = await confirm('Remove this player from the roster?', {
+      title: 'Remove Player',
+      confirmText: 'Remove'
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/players/${playerId}`);
       setPlayers(players.filter(p => p.id !== playerId));
@@ -257,7 +266,11 @@ function Roster() {
   };
 
   const handleDeleteComposition = async (id) => {
-    if (!window.confirm('Delete this composition?')) return;
+    const confirmed = await confirm('Delete this composition?', {
+      title: 'Delete Composition',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
     try {
       await api.delete(`/compositions/${id}`);
       setCompositions(compositions.filter(c => c.id !== id));
@@ -322,7 +335,7 @@ function Roster() {
       closePoolEditor();
     } catch (err) {
       console.error('Failed to save champion pool');
-      alert(err.response?.data?.error || 'Failed to save champion pool');
+      showAlert(err.response?.data?.error || 'Failed to save champion pool');
     } finally {
       setSavingPool(false);
     }
@@ -1099,6 +1112,8 @@ function Roster() {
         </div>
       )}
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
+      <AlertDialog {...alertDialogProps} />
     </VideoBackground>
   );
 }

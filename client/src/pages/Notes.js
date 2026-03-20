@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useConfirm } from '../hooks/useConfirm';
 
 const CATEGORIES = ['General', 'Champion', 'Matchup', 'Scrim', 'Strategy'];
 
@@ -13,6 +15,7 @@ function Notes() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('General');
+  const { confirm, confirmDialogProps } = useConfirm();
 
   useEffect(() => {
     fetchNotes();
@@ -72,7 +75,11 @@ function Notes() {
 
   const handleDelete = async () => {
     if (!selectedNote) return;
-    if (!window.confirm('Are you sure you want to delete this note?')) return;
+    const confirmed = await confirm('Are you sure you want to delete this note?', {
+      title: 'Delete Note',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/notes/${selectedNote.id}`);
@@ -231,6 +238,7 @@ function Notes() {
           )}
         </div>
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </div>
   );
 }

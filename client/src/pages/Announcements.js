@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import VideoBackground from '../components/VideoBackground';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useConfirm } from '../hooks/useConfirm';
 
 function Announcements() {
   const { user } = useAuth();
@@ -11,6 +13,7 @@ function Announcements() {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const { confirm, confirmDialogProps } = useConfirm();
 
   useEffect(() => {
     fetchAnnouncements();
@@ -48,7 +51,11 @@ function Announcements() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return;
+    const confirmed = await confirm('Are you sure you want to delete this announcement?', {
+      title: 'Delete Announcement',
+      confirmText: 'Delete'
+    });
+    if (!confirmed) return;
 
     try {
       await api.delete(`/announcements/${id}`);
@@ -153,6 +160,7 @@ function Announcements() {
           ))
         )}
       </div>
+      <ConfirmDialog {...confirmDialogProps} />
     </VideoBackground>
   );
 }
